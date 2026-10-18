@@ -15,6 +15,8 @@ For each news lead the report measures price return, relative volume, realized v
 
 An event marked `plausible_hypothesis` means only that a measured price reaction exceeded a simple descriptive threshold. It does not mean the event caused the move. RSS coverage is incomplete, ticker-only matches can be noisy, and no counterfactual/confounder controls are applied. Check source quality, alternative explanations and broader-market movement before making any attribution. Do not use later-published information as a prediction feature at an earlier cutoff.
 
+Syndicated and near-identical headlines are grouped with a heuristic token-overlap rule over a 72-hour window. The grouped record retains each source URL and publisher; grouping is for organization only and does not prove independent corroboration. The report uses conservative labels: `observed_reaction` means a descriptive 2% return threshold was crossed in at least one window, while `inconclusive` means it was not crossed or data were insufficient. Neither label attributes a move to a headline. Common alternative explanations are listed as review prompts, not verified findings. Weak or unknown asset matching is explicitly flagged.
+
 ## Tests
 
 ```sh
