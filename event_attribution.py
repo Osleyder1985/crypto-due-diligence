@@ -1,1 +1,1 @@
-test
+"""Event timeline analysis module."""
