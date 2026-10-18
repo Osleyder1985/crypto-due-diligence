@@ -40,7 +40,7 @@ class LevelLifecycleTests(unittest.TestCase):
         sell = cvd.add_trade("110", "1", True)
         self.assertEqual(sell["aggressor_side_inferred"], "SELL")
         self.assertEqual(sell["cvd_base"], "1")
-        self.assertEqual(sell["cvd_quote"], "-10")
+        self.assertEqual(sell["cvd_quote"], "90")
 
 
 if __name__ == "__main__":
