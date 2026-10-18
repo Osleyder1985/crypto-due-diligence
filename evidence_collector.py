@@ -104,7 +104,7 @@ def _publication_metadata(element):
         if raw:
             normalized = _publication_timestamp(raw)
             if normalized:
-                quality = "OBSERVED_PUBLICATION" if name != "updated" else "UPDATE_FALLBACK"
+                quality = "FEED_REPORTED_PUBLICATION" if name != "updated" else "UPDATE_FALLBACK"
                 return {"raw": raw, "field": names[name], "normalized": normalized, "quality": quality}
     for name in ("pubdate", "published", "date", "updated"):
         raw = candidates.get(name)
