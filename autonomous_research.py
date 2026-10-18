@@ -39,25 +39,39 @@ def fetch_candles(symbol, start, end, interval="1h", opener=urlopen):
     if interval not in INTERVALS or start >= end:
         raise ResearchError("invalid interval or date range")
     start_ms, end_ms = int(start.timestamp()*1000), int(end.timestamp()*1000)-1
-    url = "https://api.binance.com/api/v3/klines?" + urllib.parse.urlencode({
-        "symbol":symbol+"USDT","interval":interval,"startTime":start_ms,"endTime":end_ms,"limit":1000})
-    request = Request(url, headers={"User-Agent":"CryptoDueDiligence/1.0","Accept":"application/json"})
-    try:
-        with opener(request, timeout=15) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
-        raise ResearchError(f"market data request failed: {exc}") from exc
-    if not isinstance(payload, list):
-        reason = payload.get("msg", "provider returned an invalid response") if isinstance(payload, dict) else "invalid response"
-        raise ResearchError(reason)
     candles = []
-    for row in payload:
-        if not isinstance(row, list) or len(row) < 6:
-            raise ResearchError("provider returned malformed candle data")
-        stamp = int(row[0])
-        if start_ms <= stamp < int(end.timestamp()*1000):
-            candles.append({"timestamp":datetime.fromtimestamp(stamp/1000,timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
-                "open":float(row[1]),"high":float(row[2]),"low":float(row[3]),"close":float(row[4]),"volume":float(row[5])})
+    cursor = start_ms
+    pages = 0
+    while cursor <= end_ms:
+        if pages >= 100:
+            raise ResearchError("candle retrieval exceeded 100 pages; shorten the date range or use a larger interval")
+        url = "https://api.binance.com/api/v3/klines?" + urllib.parse.urlencode({
+            "symbol":symbol+"USDT","interval":interval,"startTime":cursor,"endTime":end_ms,"limit":1000})
+        request = Request(url, headers={"User-Agent":"CryptoDueDiligence/1.0","Accept":"application/json"})
+        try:
+            with opener(request, timeout=15) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+            raise ResearchError(f"market data request failed: {exc}") from exc
+        pages += 1
+        if not isinstance(payload, list):
+            reason = payload.get("msg", "provider returned an invalid response") if isinstance(payload, dict) else "invalid response"
+            raise ResearchError(reason)
+        if not payload:
+            break
+        for row in payload:
+            if not isinstance(row, list) or len(row) < 6:
+                raise ResearchError("provider returned malformed candle data")
+            stamp = int(row[0])
+            if start_ms <= stamp < int(end.timestamp()*1000):
+                candles.append({"timestamp":datetime.fromtimestamp(stamp/1000,timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
+                    "open":float(row[1]),"high":float(row[2]),"low":float(row[3]),"close":float(row[4]),"volume":float(row[5])})
+        last_stamp = int(payload[-1][0])
+        if last_stamp >= end_ms or len(payload) < 1000:
+            break
+        if last_stamp + 1 <= cursor:
+            raise ResearchError("market-data pagination did not advance")
+        cursor = last_stamp + 1
     if not candles:
         raise ResearchError(f"no {symbol}USDT candles for requested period")
     return {"provider":"Binance public spot API","symbol":symbol+"USDT","interval":interval,
