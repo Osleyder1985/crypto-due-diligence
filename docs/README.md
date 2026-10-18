@@ -9,6 +9,7 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Market Movement Detection](movement-detection.md): criterios reproducibles para detectar y delimitar movimientos de mercado.
 - [End-to-end research pipeline](research-pipeline.md): fixtures, validación integral, detección OHLCV, captura de fuentes y evaluación de hipótesis.
 - [Aprendizaje histórico controlado](historical-learning.md): memoria versionada de casos revisados, búsqueda explicable de precedentes y resúmenes descriptivos.
+- [Investigación autónoma por moneda y período](autonomous-research.md): consulta de mercado, recopilación de feeds, informe y registro de casos.
 
 ## Data contracts
 
@@ -21,6 +22,7 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Semantic validation tests](../tests/test_evidence_semantics.py): pruebas automatizadas de las reglas semánticas.
 - [Semantic validator implementation](../semantic_validation.py): validador determinista de colecciones de registros.
 - [Research pipeline entry point](../research_pipeline.py): valida registros estructuralmente y luego semánticamente.
+- [Autonomous research entry point](../autonomous_research.py): investiga un ticker en un intervalo UTC y conserva un caso preliminar.
 - [Research fixtures](../fixtures/research/): casos sintéticos completos, contradictorios y con datos insuficientes.
 
 ## Running checks
