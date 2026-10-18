@@ -175,7 +175,46 @@ def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hou
             if item["shared_reaction_window_warning"] else None
         )
     timeline.sort(key=lambda x: x["analysis_anchor_utc"] or "9999")
-    return {"methodology_version": "1.1.0", "timezone": "UTC",
+    # Group temporally dependent reaction windows. These clusters describe
+    # overlapping measurements only; they do not assert a shared economic cause.
+    cluster_number = 0
+    previous_anchor = None
+    current_members = []
+    clusters = []
+    max_window_seconds = max(windows) * 3600
+    for item in timeline:
+        anchor = parse_utc(item.get("analysis_anchor_utc"))
+        if anchor is None:
+            if current_members:
+                clusters.append(current_members)
+                current_members = []
+            previous_anchor = None
+            continue
+        if previous_anchor is None or (anchor - previous_anchor).total_seconds() >= max_window_seconds:
+            if current_members:
+                clusters.append(current_members)
+            current_members = [item]
+        else:
+            current_members.append(item)
+        previous_anchor = anchor
+    if current_members:
+        clusters.append(current_members)
+    for members in clusters:
+        cluster_number += 1
+        cluster_id = f"OVERLAP-{cluster_number:03d}" if len(members) > 1 else None
+        for item in members:
+            item["overlap_cluster_id"] = cluster_id
+            item["overlap_cluster_size"] = len(members)
+            item["overlap_cluster_note"] = (
+                "Temporal-dependence cluster: reaction windows overlap by construction. "
+                "This does not mean headlines describe the same underlying event."
+                if cluster_id else None
+            )
+    for item in timeline:
+        item.setdefault("overlap_cluster_id", None)
+        item.setdefault("overlap_cluster_size", 0)
+        item.setdefault("overlap_cluster_note", None)
+    return {"methodology_version": "1.2.0", "timezone": "UTC",
             "status": "COMPLETED" if market else "INSUFFICIENT_MARKET_DATA",
             "windows_hours": list(windows), "raw_event_count": len(events or []),
             "deduplicated_event_count": len(timeline), "timeline": timeline,
