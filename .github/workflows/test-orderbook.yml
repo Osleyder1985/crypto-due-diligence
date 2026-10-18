@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - "orderbook/**"
-      - "tests/test_orderbook_metrics.py"
+      - "tests/test_orderbook_*.py"
       - "requirements-orderbook.txt"
       - ".github/workflows/test-orderbook.yml"
   push:
@@ -30,4 +30,4 @@ jobs:
       - name: Install optional collector dependency
         run: python -m pip install -r requirements-orderbook.txt
       - name: Run offline unit tests
-        run: python -m unittest discover -s tests -p 'test_orderbook_metrics.py' -v
+        run: python -m unittest discover -s tests -p 'test_orderbook_*.py' -v
