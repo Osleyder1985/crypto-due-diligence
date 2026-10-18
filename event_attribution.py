@@ -62,7 +62,7 @@ def _reaction(rows, anchor, hours, benchmark):
 
 def _normalized_title(title):
     text = unicodedata.normalize("NFKC", str(title or "")).casefold()
-    return " ".join(re.findall(r"[\\w]+", text, flags=re.UNICODE))
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in text).split())
 
 
 def deduplicate_events(events, similarity_threshold=0.82, max_age_hours=72):
