@@ -97,10 +97,10 @@ def analyze(candles, benchmark=None):
       "total_volume_base_asset":sum(x["volume"] for x in candles),"observed_gap_count":gaps,
       "data_quality_notes":[f"{gaps} interval gap(s) detected"] if gaps else []}
     if benchmark:
-        bytime={x["timestamp"]:x["close"] for x in benchmark}
+        bytime={x["timestamp"]:x for x in benchmark}
         matches=[(x,bytime[x["timestamp"]]) for x in candles if x["timestamp"] in bytime]
-        if len(matches)>=2 and matches[0][1]>0:
-            br=(matches[-1][1]/matches[0][1]-1)*100
+        if len(matches)>=2 and matches[0][1]["open"]>0:
+            br=(matches[-1][1]["close"]/matches[0][1]["open"]-1)*100
             result["btc_return_pct"]=br
             result["relative_return_pct"]=change-br
     return result
