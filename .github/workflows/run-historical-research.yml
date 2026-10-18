@@ -1,6 +1,10 @@
 name: Run historical crypto research
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/run-historical-research.yml"
   workflow_dispatch:
     inputs:
       symbol:
@@ -50,9 +54,9 @@ jobs:
 
       - name: Validate inputs
         env:
-          SYMBOL: ${{ inputs.symbol }}
-          START_DATE: ${{ inputs.start_date }}
-          END_DATE: ${{ inputs.end_date }}
+          SYMBOL: ${{ inputs.symbol || 'BTC' }}
+          START_DATE: ${{ inputs.start_date || '2026-07-01' }}
+          END_DATE: ${{ inputs.end_date || '2026-09-21' }}
         run: |
           python - <<'PY'
           import os
@@ -78,10 +82,10 @@ jobs:
 
       - name: Run autonomous market and event research
         env:
-          SYMBOL: ${{ inputs.symbol }}
-          START_DATE: ${{ inputs.start_date }}
-          END_DATE: ${{ inputs.end_date }}
-          INTERVAL: ${{ inputs.interval }}
+          SYMBOL: ${{ inputs.symbol || 'BTC' }}
+          START_DATE: ${{ inputs.start_date || '2026-07-01' }}
+          END_DATE: ${{ inputs.end_date || '2026-09-21' }}
+          INTERVAL: ${{ inputs.interval || '1h' }}
         run: |
           mkdir -p artifacts/autonomous-research artifacts/event-study
           python autonomous_research.py "$SYMBOL" "$START_DATE" "$END_DATE" \
@@ -92,10 +96,10 @@ jobs:
 
       - name: Run standalone event study
         env:
-          SYMBOL: ${{ inputs.symbol }}
-          START_DATE: ${{ inputs.start_date }}
-          END_DATE: ${{ inputs.end_date }}
-          INTERVAL: ${{ inputs.interval }}
+          SYMBOL: ${{ inputs.symbol || 'BTC' }}
+          START_DATE: ${{ inputs.start_date || '2026-07-01' }}
+          END_DATE: ${{ inputs.end_date || '2026-09-21' }}
+          INTERVAL: ${{ inputs.interval || '1h' }}
         run: |
           python event_study.py "$SYMBOL" "$START_DATE" "$END_DATE" \
             --interval "$INTERVAL" --output-dir artifacts/event-study
@@ -104,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crypto-research-${{ inputs.symbol }}-${{ inputs.start_date }}-${{ inputs.end_date }}
+          name: crypto-research-${{ inputs.symbol || 'BTC' }}-${{ inputs.start_date || '2026-07-01' }}-${{ inputs.end_date || '2026-09-21' }}
           path: artifacts/
           if-no-files-found: warn
           retention-days: 30
