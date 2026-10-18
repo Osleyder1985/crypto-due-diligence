@@ -41,6 +41,37 @@ class AutonomousResearchTests(unittest.TestCase):
         self.assertEqual(result["symbol"],"SOLUSDT")
         self.assertEqual(result["candles"][0]["close"],105)
 
+    def test_http_451_falls_back_to_coinbase_and_normalizes_ohlcv(self):
+        calls = []
+        def opener(request, timeout=15):
+            calls.append(request.full_url)
+            if "api.binance.com" in request.full_url:
+                from urllib.error import HTTPError
+                raise HTTPError(request.full_url, 451, "Unavailable for legal reasons", {}, None)
+            # Coinbase schema: [time, low, high, open, close, volume]
+            return Response([[1735689600, "90", "110", "100", "105", "12.5"]])
+        start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2025, 1, 2, tzinfo=timezone.utc)
+        result = fetch_candles("btc", start, end, "1h", opener=opener)
+        self.assertEqual(len(calls), 2)
+        self.assertIn("symbol=BTCUSDT", calls[0])
+        self.assertIn("products/BTC-USD/candles", calls[1])
+        self.assertEqual(result["symbol"], "BTC-USD")
+        self.assertIn("Coinbase", result["provider"])
+        self.assertEqual(result["candles"][0]["open"], 100)
+        self.assertEqual(result["candles"][0]["high"], 110)
+        self.assertEqual(result["candles"][0]["low"], 90)
+        self.assertEqual(result["candles"][0]["close"], 105)
+        self.assertEqual(result["candles"][0]["volume"], 12.5)
+
+    def test_coinbase_fallback_reports_unsupported_interval(self):
+        from urllib.error import HTTPError
+        def opener(request, timeout=15):
+            raise HTTPError(request.full_url, 451, "Unavailable for legal reasons", {}, None)
+        with self.assertRaisesRegex(ResearchError, "does not support interval 4h"):
+            fetch_candles("btc", datetime(2025, 1, 1, tzinfo=timezone.utc),
+                datetime(2025, 1, 2, tzinfo=timezone.utc), "4h", opener=opener)
+
     def test_provider_error_is_explicit(self):
         def opener(request,timeout=15): return Response({"code":-1121,"msg":"Invalid symbol."})
         with self.assertRaises(ResearchError):
