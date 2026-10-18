@@ -17,7 +17,7 @@ python -m orderbook.binance_spot_collector --symbol BTCUSDT --output-dir artifac
 A bounded capture for a smoke test is possible with `--max-events 100`; it still needs live network access to Binance. Outputs are append-only:
 - `<symbol>-depth-events.jsonl`: raw depth diffs with receipt time and exchange event/update IDs.
 - `<symbol>-trades.jsonl`: raw public trades, buyer-maker flag, and inferred aggressor side.
-- `<symbol>-book-metrics.jsonl`: descriptive metrics emitted only from locally reconstructed depth after synchronization.
+- `<symbol>-book-metrics.jsonl`: descriptive metrics emitted only from locally reconstructed depth after synchronization.\n- `<symbol>-level-lifecycle.jsonl`: observed additions, quantity changes and removals of visible price levels, with first-observed time and elapsed visible lifetime.\n\nThe depth JSONL starts each synchronization session with the raw REST snapshot (`record_type: snapshot`) before subsequent diff events, preserving the baseline needed to replay that session.
 
 ## Sequence and integrity
 
@@ -29,7 +29,7 @@ A REST snapshot and a WebSocket diff stream are separate observations. Correct r
 - visible bid and ask quantity and quote-notional depth inside a configurable mid-price band;
 - base-quantity order-book imbalance (OBI);
 - estimated quote-size market-buy / market-sell slippage from currently visible levels, with incomplete fills explicitly marked;
-- public trade prints with the buyer-maker flag, from which aggressor-side flow can be summarized.
+- public trade prints with the buyer-maker flag and cumulative buy/sell volume delta (CVD) in base and quote units. The inferred aggressor side is based on Binance’s public buyer-maker flag.\n- price-level lifecycle events that measure how long a price level remains continuously visible and record quantity changes/removals.
 
 Slippage is a static-book estimate and excludes fees, latency, market impact, hidden liquidity, other venues and changes while an order executes. OBI is quantity-based and depends on the selected band; quote-notional imbalance can be added separately if justified.
 
@@ -45,6 +45,6 @@ Slippage is a static-book estimate and excludes fees, latency, market impact, hi
 ## Known first-iteration constraints
 
 - The collector is designed for a continuously running process; disconnects can leave gaps in time coverage, which must be detected from logs and raw timestamps.
-- The current metric file stores metrics after each successfully applied depth update, so output volume may be high.
-- Trade events are persisted, but cumulative volume delta (CVD), persistence/cancellation classification, cross-exchange aggregation, derivatives open interest/funding/liquidations, and alerting are intentionally not claimed as implemented.
+- The current metric file stores metrics after each successfully applied depth update, so output volume may be high. Lifecycle records are emitted only when a tracked level is added, changed or removed.\n- Lifecycle age is the continuous time a price level has been observed by this process, not the age of an individual order. It resets after collector restart/re-synchronization; gaps must not be interpreted as continuous persistence. CVD also resets at process start.
+- Cross-exchange aggregation, derivatives open interest/funding/liquidations, and alerting are intentionally not claimed as implemented. Level removal means displayed quantity at that price fell to zero in the observed book; it does not prove why it disappeared or that an order was cancelled rather than executed/replaced.
 - Live exchange smoke testing and CI execution must be checked before treating the collector as validated.
