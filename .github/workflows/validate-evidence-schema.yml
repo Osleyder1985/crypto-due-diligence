@@ -1,13 +1,19 @@
-name: Validate evidence JSON Schema and semantics
+name: Validate evidence and research pipeline
 
 on:
   pull_request:
     paths:
       - "schemas/**"
       - "tests/**"
+      - "fixtures/research/**"
       - "semantic_validation.py"
+      - "research_pipeline.py"
+      - "movement_detection.py"
+      - "evidence_collector.py"
+      - "hypothesis_evaluation.py"
       - "docs/evidence-schema.md"
       - "docs/evidence-validation.md"
+      - "docs/research-pipeline.md"
       - "docs/README.md"
       - ".github/workflows/validate-evidence-schema.yml"
   push:
@@ -16,9 +22,15 @@ on:
     paths:
       - "schemas/**"
       - "tests/**"
+      - "fixtures/research/**"
       - "semantic_validation.py"
+      - "research_pipeline.py"
+      - "movement_detection.py"
+      - "evidence_collector.py"
+      - "hypothesis_evaluation.py"
       - "docs/evidence-schema.md"
       - "docs/evidence-validation.md"
+      - "docs/research-pipeline.md"
       - "docs/README.md"
       - ".github/workflows/validate-evidence-schema.yml"
 
@@ -26,7 +38,7 @@ permissions:
   contents: read
 
 jobs:
-  validate-schema:
+  validate-research-pipeline:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -37,5 +49,7 @@ jobs:
           python-version: "3.12"
       - name: Install test dependency
         run: python -m pip install "jsonschema>=4.18,<5"
-      - name: Run evidence schema and semantic tests
+      - name: Validate all synthetic research fixtures
+        run: python research_pipeline.py validate-fixtures
+      - name: Run schema, semantic and research pipeline tests
         run: python -m unittest discover -s tests -v
