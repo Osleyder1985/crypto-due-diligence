@@ -1,0 +1,45 @@
+name: Tarea
+description: Proponer trabajo acotado y verificable para el proyecto
+title: "[TASK] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: "Describe el trabajo con precisión. Usa inglés para nombres técnicos y español para la explicación."
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objetivo
+      description: ¿Qué se quiere conseguir y por qué?
+      placeholder: Resultado esperado y motivación
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Alcance
+      description: ¿Qué incluye y qué queda fuera?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceptación
+      description: Lista de condiciones verificables para dar la tarea por terminada.
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verificación
+      description: Pruebas, comprobaciones o evidencias necesarias.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Riesgos y dependencias
+      description: Indica riesgos, dependencias o escribe "Ninguno identificado".
+    validations:
+      required: false
