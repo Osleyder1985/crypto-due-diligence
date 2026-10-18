@@ -73,7 +73,7 @@ class EventAttributionTests(unittest.TestCase):
 
     def test_weak_and_unknown_asset_matches_are_flagged(self):
         weak = analyze_event_reactions([{"title": "Macro update", "published_at": "2026-01-01T10:00:00Z",
-                                         "match_quality": "WEAK"}], candles(), windows_hours=(1,))
+                                         "match_quality": "WEAK"}], candles(), windows_hours=(6,))
         self.assertIn("only outside the headline", weak["timeline"][0]["weak_match_warning"])
         unknown = analyze_event_reactions([{"title": "Headline", "published_at": "2026-01-01T10:00:00Z"}],
                                           candles(), windows_hours=(1,))
