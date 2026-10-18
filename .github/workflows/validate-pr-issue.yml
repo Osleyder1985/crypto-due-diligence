@@ -1,5 +1,4 @@
-name: PR Issue Link CI
-run-name: Validate Pull Request Issue Link
+name: Validate Pull Request Issue Link
 
 on:
   pull_request:
