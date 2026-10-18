@@ -1,0 +1,91 @@
+{
+  "case_id": "synthetic_contradictory_evidence_v1",
+  "description": "Synthetic-only negative case: evidence contradicts the initial hypothesis. Not a real event.",
+  "records": [
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Source",
+      "record": {
+        "source_id": "src_synthetic_report",
+        "source_type": "NEWS_MEDIA",
+        "publisher": "Synthetic News Desk",
+        "title": "Synthetic correction",
+        "url": "https://example.org/synthetic-correction",
+        "published_at": "2026-02-01T10:00:00Z",
+        "retrieved_at": "2026-02-01T10:03:00Z",
+        "content_hash": null,
+        "reliability_assessment": "Synthetic fixture only",
+        "access_method": "fixture",
+        "notes": "No real article exists."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Evidence",
+      "record": {
+        "evidence_id": "evd_synthetic_refutation",
+        "source_id": "src_synthetic_report",
+        "claim": "The initially reported listing was corrected; no listing occurred in this synthetic scenario.",
+        "evidence_role": "REFUTES",
+        "excerpt_or_locator": "Synthetic fixture assertion.",
+        "captured_at": "2026-02-01T10:03:00Z",
+        "content_hash": null,
+        "verification_method": "Fixture construction only.",
+        "verification_status": "VERIFIED",
+        "limitations": "Illustrative negative test only."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Event",
+      "record": {
+        "schema_version": "1.0.0",
+        "event_id": "evt_synthetic_listing_rumor",
+        "asset_id": "chain:synthetic:asset:token2",
+        "asset_symbol": "SYN2",
+        "event_type": "EXCHANGE_MARKET_ACCESS",
+        "event_subtype": "exchange_listing",
+        "title": "Synthetic listing rumor later corrected",
+        "summary": "Illustrative unconfirmed listing rumor; subsequent fixture evidence refutes it.",
+        "occurred_at": null,
+        "published_at": "2026-02-01T09:50:00Z",
+        "captured_at": "2026-02-01T10:03:00Z",
+        "recorded_at": "2026-02-01T10:04:00Z",
+        "verification_status": "REFUTED",
+        "event_status": "CANCELLED",
+        "source_ids": [
+          "src_synthetic_report"
+        ],
+        "evidence_ids": [
+          "evd_synthetic_refutation"
+        ],
+        "observed_price_effect": {
+          "direction": "inconclusive",
+          "return_pct": null,
+          "window_start": "2026-02-01T09:45:00Z",
+          "window_end": "2026-02-01T10:15:00Z",
+          "methodology_version": "movement-detection/1.0.0"
+        },
+        "duplicate_of": null,
+        "notes": "No causal claim."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "MarketObservation",
+      "record": {
+        "observation_id": "obs_synthetic_flat_market",
+        "asset_id": "chain:synthetic:asset:token2",
+        "metric": "price_return",
+        "value": 0.1,
+        "unit": "percent",
+        "window_start": "2026-02-01T09:45:00Z",
+        "window_end": "2026-02-01T10:15:00Z",
+        "venue_or_dataset": "synthetic_fixture",
+        "methodology_version": "movement-detection/1.0.0",
+        "captured_at": "2026-02-01T10:16:00Z",
+        "limitations": "Synthetic data only."
+      }
+    }
+  ]
+}

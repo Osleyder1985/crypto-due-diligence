@@ -1,0 +1,74 @@
+{
+  "case_id": "synthetic_insufficient_data_v1",
+  "description": "Synthetic-only insufficient-data case. It is structurally valid but should not support a causal conclusion.",
+  "records": [
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Source",
+      "record": {
+        "source_id": "src_synthetic_unverified",
+        "source_type": "SOCIAL_MEDIA",
+        "publisher": "Anonymous Synthetic Account",
+        "title": "Unverified post",
+        "url": "https://example.org/synthetic-post",
+        "published_at": null,
+        "retrieved_at": "2026-03-01T12:02:00Z",
+        "content_hash": null,
+        "reliability_assessment": "Unverified",
+        "access_method": "fixture",
+        "notes": "No real post exists; original timestamp unknown."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Evidence",
+      "record": {
+        "evidence_id": "evd_synthetic_unverified",
+        "source_id": "src_synthetic_unverified",
+        "claim": "An unverified post alleges an upcoming token unlock.",
+        "evidence_role": "CONTEXTUALIZES",
+        "excerpt_or_locator": "Synthetic fixture assertion.",
+        "captured_at": "2026-03-01T12:02:00Z",
+        "content_hash": null,
+        "verification_method": "No independent corroboration available in this fixture.",
+        "verification_status": "UNVERIFIED",
+        "limitations": "Single unverified source; no independent corroboration."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Event",
+      "record": {
+        "schema_version": "1.0.0",
+        "event_id": "evt_synthetic_unlock_rumor",
+        "asset_id": "chain:synthetic:asset:token3",
+        "asset_symbol": "SYN3",
+        "event_type": "TOKENOMICS_SUPPLY",
+        "event_subtype": "token_unlock",
+        "title": "Synthetic unverified unlock rumor",
+        "summary": "Rumor captured for triage; schedule and claim not verified.",
+        "occurred_at": null,
+        "published_at": null,
+        "captured_at": "2026-03-01T12:02:00Z",
+        "recorded_at": "2026-03-01T12:03:00Z",
+        "verification_status": "UNVERIFIED",
+        "event_status": "RUMOR",
+        "source_ids": [
+          "src_synthetic_unverified"
+        ],
+        "evidence_ids": [
+          "evd_synthetic_unverified"
+        ],
+        "observed_price_effect": {
+          "direction": "not_assessed",
+          "return_pct": null,
+          "window_start": null,
+          "window_end": null,
+          "methodology_version": null
+        },
+        "duplicate_of": null,
+        "notes": "Do not infer unlock or price impact from the rumor."
+      }
+    }
+  ]
+}

@@ -7,6 +7,7 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Market Event Attribution](market-event-attribution.md): metodología para reconstruir movimientos históricos del precio y evaluar eventos potencialmente relacionados.
 - [Crypto Market Event Taxonomy](crypto-market-event-taxonomy.md): categorías normalizadas para clasificar eventos sin presuponer causalidad.
 - [Market Movement Detection](movement-detection.md): criterios reproducibles para detectar y delimitar movimientos de mercado.
+- [End-to-end research pipeline](research-pipeline.md): fixtures, validación integral, detección OHLCV, captura de fuentes y evaluación de hipótesis.
 
 ## Data contracts
 
@@ -16,6 +17,16 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Semantic evidence validation](evidence-validation.md): integridad referencial, IDs únicos y orden temporal de ventanas.
 - [Semantic validation tests](../tests/test_evidence_semantics.py): pruebas automatizadas de las reglas semánticas.
 - [Semantic validator implementation](../semantic_validation.py): validador determinista de colecciones de registros.
+- [Research pipeline entry point](../research_pipeline.py): valida registros estructuralmente y luego semánticamente.
+- [Research fixtures](../fixtures/research/): casos sintéticos completos, contradictorios y con datos insuficientes.
+
+## Running checks
+
+\`\`\`sh
+python -m pip install "jsonschema>=4.18,<5"
+python research_pipeline.py validate-fixtures
+python -m unittest discover -s tests -v
+\`\`\`
 
 ## Governance
 
