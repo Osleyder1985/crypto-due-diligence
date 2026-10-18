@@ -148,6 +148,27 @@ def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hou
                 "The event may have been anticipated before publication, or the timestamp may be a poor proxy",
                 "Coincidence, noisy ticker matching, or incomplete news coverage"]
         })
+    # Events whose reaction windows overlap are not independent observations.
+    # Keep each headline auditable, but make shared measurement windows explicit.
+    for item in timeline:
+        anchor = parse_utc(item.get("analysis_anchor_utc"))
+        overlaps = {}
+        for hours in windows:
+            count = 0
+            if anchor:
+                for other in timeline:
+                    if other is item:
+                        continue
+                    other_anchor = parse_utc(other.get("analysis_anchor_utc"))
+                    if other_anchor and abs((other_anchor - anchor).total_seconds()) < hours * 3600:
+                        count += 1
+            overlaps[f"{hours}h"] = count
+        item["overlapping_event_count_by_window"] = overlaps
+        item["shared_reaction_window_warning"] = any(value > 0 for value in overlaps.values())
+        item["shared_reaction_window_note"] = (
+            "One or more other event timestamps fall inside these reaction windows; their returns overlap and must not be counted as independent evidence."
+            if item["shared_reaction_window_warning"] else None
+        )
     timeline.sort(key=lambda x: x["analysis_anchor_utc"] or "9999")
     return {"methodology_version": "1.1.0", "timezone": "UTC",
             "status": "COMPLETED" if market else "INSUFFICIENT_MARKET_DATA",
