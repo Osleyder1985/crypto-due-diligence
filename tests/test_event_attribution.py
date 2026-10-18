@@ -29,7 +29,7 @@ class EventAttributionTests(unittest.TestCase):
         self.assertEqual("LOW", item["timestamp_confidence"])
         self.assertEqual("COMPUTED", item["reactions"]["1h"]["status"])
         self.assertGreater(item["reactions"]["1h"]["return_pct"], 0)
-        self.assertIn("does not prove", item["assessment_note"])
+        self.assertIn("not evidence of causation", item["assessment_note"])
 
     def test_missing_timestamp_and_short_coverage_are_explicit(self):
         result = analyze_event_reactions([{"title": "No time"}], candles(2), windows_hours=(24,))
