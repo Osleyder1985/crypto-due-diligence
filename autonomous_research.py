@@ -154,15 +154,32 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       "notes":"Automated draft; review required before inclusion in learning summaries."}
     precedents=find_similar_cases(case,existing,limit=10)
     save_case(cases_path,case)
-    report={"report_version":"1.0.0","run_id":"run-"+uuid4().hex,"asset_symbol":symbol,
+    # Prediction is optional: short periods still produce the market/evidence report.
+    try:
+        from prediction_evaluation import predict_next, walk_forward_evaluate
+        prediction_signal = predict_next(candles, lookback=24, horizon=6, min_train=100, neighbors=15)
+    except (ImportError, ValueError, KeyError, TypeError) as exc:
+        prediction_signal = {"status":"INSUFFICIENT_DATA", "reason":str(exc)}
+    try:
+        from prediction_evaluation import walk_forward_evaluate
+        evaluation_full = walk_forward_evaluate(candles, lookback=24, horizon=6, min_train=100, neighbors=15)
+        prediction_evaluation = {"status":"COMPLETED", "prediction_count":evaluation_full["prediction_count"],
+            "configuration":evaluation_full["configuration"], "metrics":evaluation_full["metrics"],
+            "methodology":evaluation_full["methodology"]}
+    except (ImportError, ValueError, KeyError, TypeError) as exc:
+        prediction_evaluation = {"status":"INSUFFICIENT_DATA", "reason":str(exc)}
+    report={"report_version":"1.1.0","run_id":"run-"+uuid4().hex,"asset_symbol":symbol,
       "period":{"start":start.isoformat().replace("+00:00","Z"),"end_inclusive":(end-timedelta(milliseconds=1)).isoformat().replace("+00:00","Z")},
       "generated_at":datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
       "market_data":{k:v for k,v in market.items() if k!="candles"},"market_analysis":stats,"contextual_evidence":context,
       "historical_summary":summarize_outcomes(existing),"similar_cases":precedents,"historical_case":case,
+      "prediction_signal":prediction_signal,"prediction_evaluation":prediction_evaluation,
       "limitations":["RSS coverage is incomplete; only literal ticker matches are collected.",
        "Collected evidence remains unverified; timing does not establish causality.",
        "Draft cases are excluded from learning summaries until reviewed and verified.",
-       "No price forecast or causal probability is generated."]}
+       "The experimental direction signal is not a calibrated probability or guarantee.",
+       "Prediction metrics on this requested period do not guarantee future performance."]}
+
     lines=[f"# Research report: {symbol}","","## Period",report["period"]["start"]+" — "+report["period"]["end_inclusive"],
       "","## Observed movement",f"- Direction: {stats['direction']}",f"- Return: {stats['return_pct']:.4f}%",
       f"- First open / last close: {stats['start_price']} / {stats['end_price']}",f"- High / low: {stats['high']} / {stats['low']}",
