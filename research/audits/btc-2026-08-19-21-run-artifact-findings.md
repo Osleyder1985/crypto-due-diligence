@@ -1,5 +1,7 @@
 # BTC historical research artifact audit — 2026-08-19 to 2026-08-21
 
+Tracking issue: #61.
+
 ## Scope and provenance
 
 - Artifact: `crypto-research-BTC-2026-07-01-2026-09-21.zip`
