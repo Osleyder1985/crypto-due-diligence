@@ -181,8 +181,16 @@ def collect_context(symbol,start,end,feed_collector=collect_feed):
                 if when and start<=when<end and re.search(rf"(?<![A-Z0-9]){re.escape(symbol)}(?![A-Z0-9])",text.upper()):
                     title=s.get("title") or ""
                     title_match=bool(re.search(rf"(?<![A-Z0-9]){re.escape(symbol)}(?![A-Z0-9])",title.upper()))
+                    notes=s.get("notes") or ""
+                    def note_value(key):
+                        match=re.search(rf"(?:^|; )"+re.escape(key)+r"=([^;]*)",notes)
+                        return match.group(1).strip() if match else None
                     entries.append({"title":title,"url":s.get("url"),"publisher":s.get("publisher"),
                       "published_at":published,"excerpt":(e.get("excerpt_or_locator") or "")[:1000],
+                      "publication_timestamp_raw":note_value("original_published_value"),
+                      "publication_timestamp_field":note_value("timestamp_field"),
+                      "publication_timestamp_quality":note_value("timestamp_quality") or "LEGACY_OR_UNKNOWN",
+                      "normalized_publication_timestamp":note_value("normalized_publication_timestamp") or published,
                       "match_quality":"STRONG" if title_match else "WEAK",
                       "verification_status":e.get("verification_status","UNVERIFIED"),
                       "source_id":s.get("source_id"),"evidence_id":e.get("evidence_id")})
@@ -286,7 +294,7 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       f"Raw news leads: {event_study.get('raw_event_count', len(context['entries']))}; after heuristic deduplication: {event_study.get('deduplicated_event_count', len(event_study['timeline']))}."]
     if event_study["timeline"]:
         for item in event_study["timeline"]:
-            lines.append(f"- {item.get('title') or '(untitled)'} — {item.get('publisher') or 'unknown'} — {item.get('published_at_utc') or 'timestamp unavailable'} — {item['timestamp_source']} ({item['timestamp_confidence']}) — {item.get('assessment', 'inconclusive')} — grouped sources: {item.get('duplicate_count', 1)}")
+            lines.append(f"- {item.get('title') or '(untitled)'} — {item.get('publisher') or 'unknown'} — {item.get('published_at_utc') or 'timestamp unavailable'} — {item['timestamp_source']} ({item['timestamp_confidence']}) — source timestamp: {item.get('publication_timestamp_quality', 'LEGACY_OR_UNKNOWN')} [{item.get('publication_timestamp_field') or 'field unknown'}] — {item.get('assessment', 'inconclusive')} — grouped sources: {item.get('duplicate_count', 1)}")
             if item.get("weak_match_warning"): lines.append(f"  - Match warning: {item['weak_match_warning']}")
             if item.get("shared_reaction_window_warning"):
                 counts = ", ".join(f"{window}: {count} other event(s)" for window, count in item["overlapping_event_count_by_window"].items() if count)

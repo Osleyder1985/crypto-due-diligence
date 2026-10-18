@@ -90,6 +90,32 @@ class AutonomousResearchTests(unittest.TestCase):
         self.assertIn("after:2025-01-01",query)
         self.assertIn("before:2025-01-08",query)
         self.assertEqual(result["entries"],[])
+    def test_context_preserves_timestamp_provenance_from_feed_source(self):
+        calls = {"count": 0}
+        def feed(*args, **kwargs):
+            calls["count"] += 1
+            if calls["count"] > 1:
+                return {"records": []}
+            return {"records": [
+                {"record_type": "Source", "record": {
+                    "source_id": "src1", "source_type": "NEWS_MEDIA", "publisher": "Example",
+                    "title": "BTC rises after announcement", "url": "https://example.test/story",
+                    "published_at": "2025-01-01T12:00:00Z",
+                    "notes": "original_published_value=Wed, 01 Jan 2025 12:00:00 GMT; timestamp_field=pubDate; timestamp_quality=OBSERVED_PUBLICATION; normalized_publication_timestamp=2025-01-01T12:00:00Z"
+                }},
+                {"record_type": "Evidence", "record": {
+                    "evidence_id": "ev1", "verification_status": "UNVERIFIED",
+                    "excerpt_or_locator": "BTC announcement"
+                }}
+            ]}
+        result=collect_context("BTC",utc_date("2025-01-01"),utc_date("2025-01-02"),feed_collector=feed)
+        self.assertEqual(len(result["entries"]),1)
+        entry=result["entries"][0]
+        self.assertEqual(entry["publication_timestamp_raw"],"Wed, 01 Jan 2025 12:00:00 GMT")
+        self.assertEqual(entry["publication_timestamp_field"],"pubDate")
+        self.assertEqual(entry["publication_timestamp_quality"],"OBSERVED_PUBLICATION")
+        self.assertEqual(entry["normalized_publication_timestamp"],"2025-01-01T12:00:00Z")
+
     def test_prediction_memory_accumulates_across_research_runs(self):
         with tempfile.TemporaryDirectory() as directory:
             memory_path=Path(directory)/"prediction-memory.json"
