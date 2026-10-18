@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Osleyder1985/crypto-due-diligence/blob/main/schemas/evidence.schema.json",
+  "title": "CryptoDueDiligence evidence records",
+  "description": "Structural contract for the Event, Source, Evidence and Market observation records described in docs/evidence-schema.md. It does not verify referenced IDs or causality.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "record_type": {
+      "type": "string",
+      "enum": [
+        "Event",
+        "Source",
+        "Evidence",
+        "MarketObservation"
+      ]
+    },
+    "record": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/event"
+        },
+        {
+          "$ref": "#/$defs/source"
+        },
+        {
+          "$ref": "#/$defs/evidence"
+        },
+        {
+          "$ref": "#/$defs/marketObservation"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "record_type",
+    "record"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "Event"
+          }
+        },
+        "required": [
+          "record_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "record": {
+            "$ref": "#/$defs/event"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "Source"
+          }
+        },
+        "required": [
+          "record_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "record": {
+            "$ref": "#/$defs/source"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "Evidence"
+          }
+        },
+        "required": [
+          "record_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "record": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "MarketObservation"
+          }
+        },
+        "required": [
+          "record_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "record": {
+            "$ref": "#/$defs/marketObservation"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "utcDateTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$",
+      "description": "ISO 8601 timestamp in UTC, ending in Z."
+    },
+    "nullableUtcDateTime": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "verificationStatus": {
+      "type": "string",
+      "enum": [
+        "UNVERIFIED",
+        "PARTIALLY_VERIFIED",
+        "VERIFIED",
+        "DISPUTED",
+        "REFUTED"
+      ]
+    },
+    "eventStatus": {
+      "type": "string",
+      "enum": [
+        "RUMOR",
+        "ANNOUNCED",
+        "SCHEDULED",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "UNKNOWN"
+      ]
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "PROJECT_FUNDAMENTALS",
+        "TOKENOMICS_SUPPLY",
+        "EXCHANGE_MARKET_ACCESS",
+        "MARKET_MICROSTRUCTURE",
+        "DERIVATIVES_LEVERAGE",
+        "ONCHAIN_ACTIVITY",
+        "SECURITY_INCIDENT",
+        "GOVERNANCE_DECENTRALIZATION",
+        "REGULATORY_LEGAL",
+        "MACROECONOMIC_GEOPOLITICAL",
+        "SENTIMENT_INFORMATION",
+        "COMPETITOR_ECOSYSTEM",
+        "DATA_QUALITY_OPERATIONAL"
+      ]
+    },
+    "observedPriceEffect": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "positive_observed",
+            "negative_observed",
+            "mixed_or_reversing",
+            "no_material_move_detected",
+            "inconclusive",
+            "not_assessed"
+          ]
+        },
+        "return_pct": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "window_start": {
+          "$ref": "#/$defs/nullableUtcDateTime"
+        },
+        "window_end": {
+          "$ref": "#/$defs/nullableUtcDateTime"
+        },
+        "methodology_version": {
+          "$ref": "#/$defs/nullableString"
+        }
+      },
+      "required": [
+        "direction",
+        "return_pct",
+        "window_start",
+        "window_end",
+        "methodology_version"
+      ],
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asset_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asset_symbol": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "event_type": {
+          "$ref": "#/$defs/eventType"
+        },
+        "event_subtype": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "occurred_at": {
+          "$ref": "#/$defs/nullableUtcDateTime"
+        },
+        "published_at": {
+          "$ref": "#/$defs/nullableUtcDateTime"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "verification_status": {
+          "$ref": "#/$defs/verificationStatus"
+        },
+        "event_status": {
+          "$ref": "#/$defs/eventStatus"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "observed_price_effect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/observedPriceEffect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duplicate_of": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        }
+      },
+      "required": [
+        "schema_version",
+        "event_id",
+        "asset_id",
+        "event_type",
+        "title",
+        "summary",
+        "captured_at",
+        "recorded_at",
+        "verification_status",
+        "event_status",
+        "source_ids",
+        "evidence_ids"
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "OFFICIAL_ANNOUNCEMENT",
+            "REGULATORY_FILING",
+            "NEWS_MEDIA",
+            "EXCHANGE_DATA",
+            "ONCHAIN_DATA",
+            "SOCIAL_MEDIA",
+            "RESEARCH_REPORT",
+            "OTHER"
+          ]
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "published_at": {
+          "$ref": "#/$defs/nullableUtcDateTime"
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "reliability_assessment": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "access_method": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type",
+        "publisher",
+        "url",
+        "retrieved_at"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_role": {
+          "type": "string",
+          "enum": [
+            "SUPPORTS",
+            "CONTRADICTS",
+            "CONTEXTUALIZES",
+            "REFUTES"
+          ]
+        },
+        "excerpt_or_locator": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "verification_method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verification_status": {
+          "$ref": "#/$defs/verificationStatus"
+        },
+        "limitations": {
+          "$ref": "#/$defs/nullableString"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "source_id",
+        "claim",
+        "evidence_role",
+        "captured_at",
+        "verification_method",
+        "verification_status"
+      ],
+      "additionalProperties": false
+    },
+    "marketObservation": {
+      "type": "object",
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asset_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "metric": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": [
+            "number",
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "window_start": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "window_end": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "venue_or_dataset": {
+          "type": "string",
+          "minLength": 1
+        },
+        "methodology_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "captured_at": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "limitations": {
+          "$ref": "#/$defs/nullableString"
+        }
+      },
+      "required": [
+        "observation_id",
+        "asset_id",
+        "metric",
+        "value",
+        "unit",
+        "window_start",
+        "window_end",
+        "venue_or_dataset",
+        "methodology_version",
+        "captured_at"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
