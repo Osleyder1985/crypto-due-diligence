@@ -13,7 +13,10 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-import websockets
+try:
+    import websockets
+except ImportError:
+    websockets = None
 
 REST_BASE = "https://api.binance.com"
 WS_BASE = "wss://stream.binance.com:9443/stream?streams="
@@ -142,6 +145,8 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                   depth_band_pct=Decimal("1"), trade_size_quote=Decimal("1000"),
                   max_events=None, reconnect_delay=3):
     """Capture public streams; on disconnect or sequence gap, re-sync from a snapshot."""
+    if websockets is None:
+        raise RuntimeError("install the optional dependency: pip install -r requirements-orderbook.txt")
     symbol = symbol.strip().upper()
     if not symbol.isalnum() or not 5 <= len(symbol) <= 20:
         raise ValueError("symbol must be an alphanumeric Binance Spot pair, e.g. BTCUSDT")
