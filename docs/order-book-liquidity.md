@@ -12,12 +12,15 @@ Use Python 3.11+ and install the optional dependency:
 python -m pip install -r requirements-orderbook.txt
 python -m unittest discover -s tests -v
 python -m orderbook.binance_spot_collector --symbol BTCUSDT --output-dir artifacts/orderbook
+# After collecting data, generate JSON and Markdown summaries:
+python -m orderbook.liquidity_report --symbol BTCUSDT --input-dir artifacts/orderbook --output-dir artifacts/orderbook --price-bucket 100
 ```
 
 A bounded capture for a smoke test is possible with `--max-events 100`; it still needs live network access to Binance. Outputs are append-only:
 - `<symbol>-depth-events.jsonl`: raw depth diffs with receipt time and exchange event/update IDs.
 - `<symbol>-trades.jsonl`: raw public trades, buyer-maker flag, and inferred aggressor side.
-- `<symbol>-book-metrics.jsonl`: descriptive metrics emitted only from locally reconstructed depth after synchronization.\n- `<symbol>-level-lifecycle.jsonl`: observed additions, quantity changes and removals of visible price levels, with first-observed time and elapsed visible lifetime.\n\nThe depth JSONL starts each synchronization session with the raw REST snapshot (`record_type: snapshot`) before subsequent diff events, preserving the baseline needed to replay that session.
+- `<symbol>-book-metrics.jsonl`: descriptive metrics emitted only from locally reconstructed depth after synchronization.\n- `<symbol>-level-lifecycle.jsonl`: observed additions, quantity changes and removals of visible price levels, with first-observed time and elapsed visible lifetime.
+- `<symbol>-liquidity-report.json` and `<symbol>-liquidity-report.md`: offline summary of event counts, completed visible-level lifetimes by side, latest valid book metrics, and configurable price buckets.\n\nThe depth JSONL starts each synchronization session with the raw REST snapshot (`record_type: snapshot`) before subsequent diff events, preserving the baseline needed to replay that session.
 
 ## Sequence and integrity
 
@@ -46,5 +49,5 @@ Slippage is a static-book estimate and excludes fees, latency, market impact, hi
 
 - The collector is designed for a continuously running process; disconnects can leave gaps in time coverage, which must be detected from logs and raw timestamps.
 - The current metric file stores metrics after each successfully applied depth update, so output volume may be high. Lifecycle records are emitted only when a tracked level is added, changed or removed.\n- Lifecycle age is the continuous time a price level has been observed by this process, not the age of an individual order. It resets after collector restart/re-synchronization; gaps must not be interpreted as continuous persistence. CVD also resets at process start.
-- Cross-exchange aggregation, derivatives open interest/funding/liquidations, and alerting are intentionally not claimed as implemented. Level removal means displayed quantity at that price fell to zero in the observed book; it does not prove why it disappeared or that an order was cancelled rather than executed/replaced.
+- The report summarizes only records present in the input files; it cannot recover periods missed during disconnects. Cross-exchange aggregation, derivatives open interest/funding/liquidations, and alerting are intentionally not claimed as implemented. Level removal means displayed quantity at that price fell to zero in the observed book; it does not prove why it disappeared or that an order was cancelled rather than executed/replaced.
 - Live exchange smoke testing and CI execution must be checked before treating the collector as validated.
