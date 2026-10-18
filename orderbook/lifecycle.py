@@ -46,29 +46,29 @@ class LevelLifecycleTracker:
                 if quantity == 0:
                     if previous is not None:
                         emitted.append(self._record(
-                            side_name, price, previous, at, "removed", Decimal(0)
+                            side_name, price, previous, at, "removed", previous["quantity"], Decimal(0)
                         ))
                         del levels[price]
                     continue
                 if previous is None:
                     current = {"quantity": quantity, "first_seen": at}
                     levels[price] = current
-                    emitted.append(self._record(side_name, price, current, at, "added", quantity))
+                    emitted.append(self._record(side_name, price, current, at, "added", Decimal(0), quantity))
                 elif previous["quantity"] != quantity:
                     current = {"quantity": quantity, "first_seen": previous["first_seen"]}
                     levels[price] = current
-                    emitted.append(self._record(side_name, price, current, at, "quantity_changed", quantity))
+                    emitted.append(self._record(side_name, price, current, at, "quantity_changed", previous["quantity"], quantity))
         return emitted
 
     @staticmethod
-    def _record(side, price, state, at, event_type, quantity):
+    def _record(side, price, state, at, event_type, quantity_before, quantity_after):
         age_ms = max(0, int((at - state["first_seen"]).total_seconds() * 1000))
         return {
             "side": side,
             "price": str(price),
             "event_type": event_type,
-            "previous_or_current_quantity": str(state["quantity"]),
-            "quantity_after_event": str(quantity),
+            "quantity_before_event": str(quantity_before),
+            "quantity_after_event": str(quantity_after),
             "first_observed_at": state["first_seen"].isoformat().replace("+00:00", "Z"),
             "observed_at": at.isoformat().replace("+00:00", "Z"),
             "observed_lifetime_ms": age_ms,
