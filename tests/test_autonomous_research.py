@@ -91,7 +91,11 @@ class AutonomousResearchTests(unittest.TestCase):
         self.assertIn("before:2025-01-08",query)
         self.assertEqual(result["entries"],[])
     def test_context_preserves_timestamp_provenance_from_feed_source(self):
+        calls = {"count": 0}
         def feed(*args, **kwargs):
+            calls["count"] += 1
+            if calls["count"] > 1:
+                return {"records": []}
             return {"records": [
                 {"record_type": "Source", "record": {
                     "source_id": "src1", "source_type": "NEWS_MEDIA", "publisher": "Example",
