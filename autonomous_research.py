@@ -133,7 +133,7 @@ def collect_context(symbol,start,end,feed_collector=collect_feed):
     return {"entries":entries,"feed_errors":errors,"interpretation":"Feed matches are leads, not proof of causation."}
 
 def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="data/historical_cases.json",
-        market_fetcher=fetch_candles,feed_collector=collect_feed):
+        prediction_memory_path="data/prediction_memory.json",market_fetcher=fetch_candles,feed_collector=collect_feed):
     symbol=symbol.upper().strip()
     market=market_fetcher(symbol,start,end,interval)
     candles=market["candles"]
@@ -159,20 +159,39 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       "notes":"Automated draft; review required before inclusion in learning summaries."}
     precedents=find_similar_cases(case,existing,limit=10)
     save_case(cases_path,case)
-    # Prediction is optional: short periods still produce the market/evidence report.
+    # Load prior-run direction outcomes before appending examples from this window.
+    from prediction_memory import load_examples, eligible_examples, build_examples, append_examples, PredictionMemoryError
+    memory_load_error=None; prior_memory=[]
+    try:
+        all_memory=load_examples(prediction_memory_path)
+        prior_memory=eligible_examples(all_memory,symbol,interval,24,6,as_of=candles[-1]["timestamp"],before_timestamp=candles[0]["timestamp"])
+    except (PredictionMemoryError, OSError, ValueError) as exc:
+        all_memory=[]; memory_load_error=str(exc)
     try:
         from prediction_evaluation import predict_next, walk_forward_evaluate
-        prediction_signal = predict_next(candles, lookback=24, horizon=6, min_train=100, neighbors=15)
+        prediction_signal = predict_next(candles, lookback=24, horizon=6, min_train=100, neighbors=15, memory_examples=prior_memory)
     except (ImportError, ValueError, KeyError, TypeError) as exc:
         prediction_signal = {"status":"INSUFFICIENT_DATA", "reason":str(exc)}
     try:
         from prediction_evaluation import walk_forward_evaluate
-        evaluation_full = walk_forward_evaluate(candles, lookback=24, horizon=6, min_train=100, neighbors=15)
+        evaluation_full = walk_forward_evaluate(candles, lookback=24, horizon=6, min_train=100, neighbors=15, memory_examples=prior_memory)
         prediction_evaluation = {"status":"COMPLETED", "prediction_count":evaluation_full["prediction_count"],
             "configuration":evaluation_full["configuration"], "metrics":evaluation_full["metrics"],
             "methodology":evaluation_full["methodology"]}
     except (ImportError, ValueError, KeyError, TypeError) as exc:
         prediction_evaluation = {"status":"INSUFFICIENT_DATA", "reason":str(exc)}
+    memory_update={"status":"UNAVAILABLE","prior_eligible_example_count":len(prior_memory),
+        "new_examples_added":0,"total_examples":len(all_memory),"path":str(prediction_memory_path)}
+    if memory_load_error:
+        memory_update["reason"]="Existing memory could not be loaded; no overwrite attempted: "+memory_load_error
+    else:
+        try:
+            new_examples=build_examples(candles,symbol,interval,market.get("provider","unknown"),lookback=24,horizon=6)
+            update=append_examples(prediction_memory_path,new_examples)
+            memory_update.update({"status":"UPDATED" if update["added_count"] else "UNCHANGED",
+                "new_examples_added":update["added_count"],"total_examples":update["total_count"]})
+        except (PredictionMemoryError, OSError, ValueError, KeyError, TypeError) as exc:
+            memory_update["reason"]=str(exc)
     report={"report_version":"1.1.0","run_id":"run-"+uuid4().hex,"asset_symbol":symbol,
       "period":{"start":start.isoformat().replace("+00:00","Z"),"end_inclusive":(end-timedelta(milliseconds=1)).isoformat().replace("+00:00","Z")},
       "generated_at":datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
