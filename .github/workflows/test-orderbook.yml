@@ -11,7 +11,7 @@ on:
     branches: [main]
     paths:
       - "orderbook/**"
-      - "tests/test_orderbook_metrics.py"
+      - "tests/test_orderbook_*.py"
       - "requirements-orderbook.txt"
       - ".github/workflows/test-orderbook.yml"
 
