@@ -146,6 +146,22 @@ def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hou
             "assessment": "observed_reaction" if has_observed_reaction else "inconclusive",
             "assessment_note": ("A descriptive return threshold was crossed; this is not evidence of causation." if has_observed_reaction else
                                 "No reaction crossed the descriptive threshold, or available data were insufficient."),
+            # Deliberately fail closed: price reaction plus temporal proximity is
+            # never enough to label a headline as the cause of a market move.
+            "causal_attribution_status": "NOT_ESTABLISHED",
+            "causal_attribution_reason": (
+                "Temporal proximity and a measured return do not establish causation. "
+                "Verify the underlying event and original source, confirm event time independently, "
+                "assess a plausible impact mechanism, compare market benchmarks and competing events, "
+                "and check whether the information was already anticipated."
+            ),
+            "causal_evidence_requirements": [
+                "Underlying event and original source verified",
+                "Event time independently corroborated, not inferred only from feed metadata",
+                "Plausible impact mechanism and direction documented",
+                "Broad-market benchmark and contemporaneous competing events assessed",
+                "Prior anticipation or leakage of the information assessed",
+            ],
             "alternative_explanations": [
                 "Broad-market or BTC movement during the same window",
                 "Other contemporaneous news, macroeconomic data, or policy announcements",
@@ -214,7 +230,7 @@ def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hou
         item.setdefault("overlap_cluster_id", None)
         item.setdefault("overlap_cluster_size", 0)
         item.setdefault("overlap_cluster_note", None)
-    return {"methodology_version": "1.2.0", "timezone": "UTC",
+    return {"methodology_version": "1.3.0", "timezone": "UTC",
             "status": "COMPLETED" if market else "INSUFFICIENT_MARKET_DATA",
             "windows_hours": list(windows), "raw_event_count": len(events or []),
             "deduplicated_event_count": len(timeline), "timeline": timeline,
@@ -223,5 +239,6 @@ def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hou
                 "Window starts at the first candle at or after the timestamp and ends at the first candle at or after the horizon.",
                 "Volume comparison uses up to 24 preceding candles.",
                 "No confounder controls are applied; reaction metrics are descriptive, not causal attribution.",
+                "Causal attribution stays NOT_ESTABLISHED until independent source, event-time, mechanism, benchmark, and competing-event checks are documented.",
                 "Alternative explanations are prompts for review, not verified findings.",
                 "Never use information published after a prediction cutoff as a prediction feature."]}
