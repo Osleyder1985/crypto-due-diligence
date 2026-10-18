@@ -158,8 +158,8 @@ def render_markdown(report):
         "|---|---:|---:|---:|---:|",
     ])
     for row in report["price_buckets"]:
-        bid = row["bid_completed_lifetimes_ms"]["median_ms"]
-        ask = row["ask_completed_lifetimes_ms"]["median_ms"]
+        bid = row["bid_completed_lifetimes"]["median_ms"]
+        ask = row["ask_completed_lifetimes"]["median_ms"]
         lines.append(f"| [{row['price_bucket_start']}, {row['price_bucket_end_exclusive']}) | {row['bid_events']} | {row['ask_events']} | {bid if bid is not None else 'n/a'} | {ask if ask is not None else 'n/a'} |")
     lines.extend(["", "## Interpretation limits", ""])
     lines.extend(f"- {item}" for item in report["limitations"])
