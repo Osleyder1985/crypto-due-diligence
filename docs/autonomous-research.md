@@ -22,13 +22,14 @@ Intervalos admitidos: 1m, 5m, 15m, 30m, 1h, 4h y 1d. El informe Markdown y el re
 - Datos de velas OHLCV del endpoint público de Binance para el par TICKERUSDT.
 - Retorno observado, extremos, volumen, huecos detectables y comparación con BTC cuando está disponible.
 - Coincidencias literales del ticker en feeds RSS/Atom públicos configurados en autonomous_research.py, dentro de la ventana de publicación solicitada.
+- Una búsqueda RSS de Google News con el ticker y las fechas solicitadas para ampliar la detección de noticias históricas.
 - Errores de feeds, enlaces, fechas y estado de verificación de las evidencias.
 - Casos históricos similares y resúmenes de casos revisados elegibles.
 - Una señal direccional experimental para el horizonte de seis velas y métricas de evaluación walk-forward frente a una línea base de momentum, si el periodo contiene suficientes velas.
 
 ## Límites importantes
 
-La cobertura RSS es incompleta; la búsqueda actual detecta menciones literales del ticker, no una búsqueda semántica de todo Internet ni todos los alias de un activo. El proveedor de precios es Binance spot y el par por defecto es TICKERUSDT; no se cambia de proveedor silenciosamente. El endpoint público puede limitar peticiones o no ofrecer el activo. Las entradas de feeds se marcan como no verificadas: coincidencia temporal o textual no demuestra causalidad.
+La cobertura RSS y de Google News es incompleta; la búsqueda actual detecta menciones literales del ticker, no una búsqueda semántica de todo Internet ni todos los alias de un activo. Los símbolos cortos pueden producir falsos positivos; las noticias deben revisarse y contrastarse con fuentes primarias. El proveedor de precios es Binance spot y el par por defecto es TICKERUSDT; no se cambia de proveedor silenciosamente. El endpoint público puede limitar peticiones o no ofrecer el activo. Las entradas de feeds se marcan como no verificadas: coincidencia temporal o textual no demuestra causalidad.
 
 Cada ejecución se guarda inicialmente como caso DRAFT, UNVERIFIED, con resultado UNKNOWN. Esos casos no participan en resúmenes de aprendizaje causal hasta que un analista revise fuentes y registre un resultado verificado. El informe ahora incluye una señal direccional experimental basada en patrones históricos de precio/volumen y evaluación walk-forward, si hay datos suficientes. La proporción de votos de vecinos no es una probabilidad calibrada ni una garantía. No usar fixtures sintéticas como historia real de mercado.
 

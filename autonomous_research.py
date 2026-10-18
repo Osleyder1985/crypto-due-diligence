@@ -107,7 +107,12 @@ def analyze(candles, benchmark=None):
 
 def collect_context(symbol,start,end,feed_collector=collect_feed):
     entries=[]; errors=[]
-    for i,feed in enumerate(FEEDS):
+    # Google News RSS supports date-scoped queries; results are discovery leads, not verified evidence.
+    query=f'"{symbol}" crypto after:{start.date().isoformat()} before:{end.date().isoformat()}'
+    google_url="https://news.google.com/rss/search?"+urllib.parse.urlencode({
+        "q":query,"hl":"en-US","gl":"US","ceid":"US:en"})
+    feeds_to_scan=list(FEEDS)+[{"name":"Google News date-scoped search","url":google_url}]
+    for i,feed in enumerate(feeds_to_scan):
         try:
             capture=feed_collector(feed["url"],feed["name"],f"src_{i}_{uuid4().hex[:8]}",f"ev_{i}_{uuid4().hex[:8]}")
             records=capture.get("records",[])

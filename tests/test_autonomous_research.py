@@ -3,8 +3,9 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
-from autonomous_research import ResearchError, analyze, fetch_candles, utc_date, run
+from autonomous_research import ResearchError, analyze, collect_context, fetch_candles, utc_date, run
 
 def candle(ts, op, close, vol=10):
     return {"timestamp":ts,"open":op,"high":max(op,close),"low":min(op,close),"close":close,"volume":vol}
@@ -45,6 +46,19 @@ class AutonomousResearchTests(unittest.TestCase):
         with self.assertRaises(ResearchError):
             fetch_candles("bad",datetime(2025,1,1,tzinfo=timezone.utc),datetime(2025,1,2,tzinfo=timezone.utc),opener=opener)
 
+    def test_context_search_is_scoped_to_ticker_and_requested_dates(self):
+        urls=[]
+        def feed(url,*args,**kwargs):
+            urls.append(url)
+            return {"records":[]}
+        result=collect_context("SOL",utc_date("2025-01-01"),utc_date("2025-01-08"),feed_collector=feed)
+        news=[url for url in urls if "news.google.com/rss/search" in url]
+        self.assertEqual(len(news),1)
+        query=parse_qs(urlparse(news[0]).query)["q"][0]
+        self.assertIn('"SOL" crypto',query)
+        self.assertIn("after:2025-01-01",query)
+        self.assertIn("before:2025-01-08",query)
+        self.assertEqual(result["entries"],[])
     def test_end_to_end_writes_report_and_unreviewed_case(self):
         start=datetime(2025,1,1,tzinfo=timezone.utc); end=datetime(2025,1,2,tzinfo=timezone.utc)
         market={"provider":"mock","symbol":"SOLUSDT","interval":"1h","retrieved_at":"2025-01-02T00:00:00Z",
