@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Osleyder1985/crypto-due-diligence/blob/main/schemas/historical-case.schema.json",
+  "title": "CryptoDueDiligence historical research case",
+  "description": "Versioned case-memory record. Reviewed labels support descriptive analysis only and do not establish causality.",
+  "type": "object",
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0.0"},
+    "case_id": {"type": "string", "minLength": 1},
+    "asset_id": {"type": "string", "minLength": 1},
+    "asset_symbol": {"type": ["string", "null"]},
+    "event_type": {"type": "string", "minLength": 1},
+    "detected_at": {"type": "string", "format": "date-time", "pattern": "Z$"},
+    "window_minutes": {"type": "integer", "minimum": 1},
+    "movement_direction": {"enum": ["UP", "DOWN", "MIXED", "FLAT", "UNKNOWN"]},
+    "return_pct": {"type": ["number", "null"]},
+    "candidate_factors": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "source_case_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "outcome_label": {"enum": ["SUPPORTED", "PARTIALLY_SUPPORTED", "CONTRADICTED", "MULTIPLE_FACTORS", "UNKNOWN", "INSUFFICIENT_EVIDENCE"]},
+    "review_status": {"enum": ["DRAFT", "REVIEWED"]},
+    "verification_status": {"enum": ["UNVERIFIED", "PARTIALLY_VERIFIED", "VERIFIED"]},
+    "reviewer": {"type": ["string", "null"]},
+    "reviewed_at": {"type": ["string", "null"], "format": "date-time"},
+    "methodology_version": {"type": "string", "minLength": 1},
+    "notes": {"type": ["string", "null"]}
+  },
+  "required": ["schema_version", "case_id", "asset_id", "event_type", "detected_at", "window_minutes", "movement_direction", "return_pct", "candidate_factors", "evidence_ids", "source_case_ids", "outcome_label", "review_status", "verification_status", "methodology_version"],
+  "additionalProperties": false
+}
