@@ -1,4 +1,4 @@
-name: Validate Pull Request Issue Link
+name: PR Issue Link
 
 on:
   pull_request:
