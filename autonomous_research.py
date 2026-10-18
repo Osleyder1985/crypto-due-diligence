@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from evidence_collector import collect_feed, CollectionError
 from historical_learning import load_cases, save_case, find_similar_cases, summarize_outcomes
+from event_attribution import analyze_event_reactions
 
 FEEDS = [
     {"name": "Cointelegraph", "url": "https://cointelegraph.com/rss"},
@@ -144,6 +145,7 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
     stats=analyze(candles,benchmark)
     if benchmark_error: stats["data_quality_notes"].append("BTC benchmark unavailable: "+benchmark_error)
     context=collect_context(symbol,start,end,feed_collector)
+    event_study=analyze_event_reactions(context["entries"],candles,benchmark)
     existing=load_cases(cases_path)
     factors=[]
     if abs(stats["return_pct"])>=5: factors.append("large_period_return")
@@ -195,7 +197,7 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
     report={"report_version":"1.1.0","run_id":"run-"+uuid4().hex,"asset_symbol":symbol,
       "period":{"start":start.isoformat().replace("+00:00","Z"),"end_inclusive":(end-timedelta(milliseconds=1)).isoformat().replace("+00:00","Z")},
       "generated_at":datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
-      "market_data":{k:v for k,v in market.items() if k!="candles"},"market_analysis":stats,"contextual_evidence":context,
+      "market_data":{k:v for k,v in market.items() if k!="candles"},"market_analysis":stats,"contextual_evidence":context,"event_study":event_study,
       "historical_summary":summarize_outcomes(existing),"similar_cases":precedents,"historical_case":case,
       "prediction_signal":prediction_signal,"prediction_evaluation":prediction_evaluation,"prediction_memory":memory_update,
       "limitations":["RSS coverage is incomplete; only literal ticker matches are collected.",
@@ -222,6 +224,18 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
         lines.append(f"- KNN directional accuracy: {prediction_evaluation['metrics']['knn']['directional_accuracy']}")
         lines.append(f"- Momentum baseline accuracy: {prediction_evaluation['metrics']['momentum_baseline']['directional_accuracy']}")
     lines.append("This signal is experimental; neighbor vote share is not a calibrated probability and does not establish why a move occurred.")
+    lines += ["","## Event timeline and observed reactions","",
+      "These are descriptive post-publication price reactions, not proof that a headline caused the move."]
+    if event_study["timeline"]:
+        for item in event_study["timeline"]:
+            lines.append(f"- {item.get('title') or '(untitled)'} — {item.get('publisher') or 'unknown'} — {item.get('published_at_utc') or 'timestamp unavailable'} — {item['timestamp_source']} ({item['timestamp_confidence']})")
+            for window, metric in item["reactions"].items():
+                if metric.get("status") == "COMPUTED":
+                    lines.append(f"  - {window}: return {metric['return_pct']:.4f}%; volume delta {metric['volume_change_pct_vs_prior_24_candles']}; run-up {metric['max_runup_pct']}%; drawdown {metric['max_drawdown_pct']}%; volatility RSS {metric['realized_volatility_pct_rss']}")
+                else:
+                    lines.append(f"  - {window}: {metric.get('status')}")
+    else:
+        lines.append("No timestamped matching news leads were available; this does not establish that no catalyst existed.")
     lines += ["","## Evidence leads",""]
     if context["entries"]:
         for item in context["entries"]: lines.append(f"- {item['title']} — {item['publisher']} — {item['published_at']} — {item['url']} — UNVERIFIED")
