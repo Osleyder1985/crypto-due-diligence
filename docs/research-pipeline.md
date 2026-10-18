@@ -5,7 +5,7 @@
 - Contrato de registros: `schemas/evidence.schema.json` (schema `1.0.0`).
 - Validador de colección: `research_pipeline.py` (pipeline `1.0.0`).
 - Detección OHLCV: `movement_detection.py` (metodología `1.0.0`).
-- Captura HTTP de evidencia: `evidence_collector.py` (collector `1.0.0`).
+- Captura HTTP y feeds RSS 2.0/Atom: `evidence_collector.py` (collector `1.1.0`).
 - Evaluación de hipótesis: `hypothesis_evaluation.py` (evaluator `1.0.0`).
 
 ## Validar fixtures
@@ -43,9 +43,11 @@ Los umbrales por defecto son demostrativos, no universales ni calibrados para op
 
 ## Captura de fuentes
 
-`collect_url(...)` realiza una petición HTTP(S) explícita a una URL pública y devuelve registros Source y Evidence, timestamp de captura, URL original, URL final, hash SHA-256, tipo de contenido, estado HTTP y metadata Last-Modified. El campo `published_at` solo se rellena con el timestamp de publicación original proporcionado por el llamador; Last-Modified se conserva como metadata de transporte y no se equipara a la fecha original de publicación.
+`collect_url(...)` realiza una petición HTTP(S) explícita a una URL pública y devuelve registros Source y Evidence, timestamp de captura, URL original, URL final, hash SHA-256, tipo de contenido, estado HTTP, metadata Last-Modified y el texto de respuesta acotado por `max_bytes`. El campo `published_at` solo se rellena con el timestamp de publicación original proporcionado por el llamador; Last-Modified se conserva como metadata de transporte y no se equipara a la fecha original de publicación.
 
-La captura es opt-in: no hay crawler programado ni consulta automática de redes sociales. No se descargan datos de mercado automáticamente, no se requieren credenciales y el contenido no se persiste como archivo. Los cuerpos grandes se rechazan por límite de bytes. El hash sirve para comparar los bytes capturados, no para demostrar quién publicó el contenido o que sea verdadero. El análisis de HTML, RSS/Atom, autenticación, políticas de acceso y licencias debe añadirse por proveedor antes de producción.
+`collect_feed(...)` descarga una URL de feed indicada explícitamente y admite RSS 2.0 y Atom. Emite un par Source/Evidence por entrada y conserva la URL del feed, la URL o ID de la entrada, el título, el texto original de la fecha en notas de procedencia, la fecha normalizada a UTC cuando puede interpretarse, el timestamp de captura y un hash SHA-256. Fechas ausentes o no interpretables quedan como `published_at: null`, sin inventar una fecha. `parse_feed(...)` permite probar/parsing sin red. Las entradas quedan `UNVERIFIED`; el feed no acredita por sí mismo la veracidad ni la autoría.
+
+La captura es opt-in: no hay crawler programado ni consulta automática de redes sociales. No se descargan datos de mercado automáticamente, no se requieren credenciales y el contenido no se persiste como archivo. Los cuerpos grandes se rechazan por límite de bytes. El hash sirve para comparar los bytes capturados, no para demostrar quién publicó el contenido o que sea verdadero. El análisis semántico de HTML, autenticación, políticas de acceso y licencias debe añadirse por proveedor antes de producción. La ingestión de RSS/Atom no descubre feeds automáticamente ni ejecuta un crawler programado; solo procesa URLs explícitas. No incluye scheduler, autenticación de proveedor ni deduplicación entre feeds.
 
 ## Evaluación de hipótesis
 
