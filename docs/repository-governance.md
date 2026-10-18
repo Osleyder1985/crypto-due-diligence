@@ -34,9 +34,13 @@ La configuración debe revisarse de nuevo cuando cambien las reglas, las ramas p
 
 ## Validación del vínculo Issue–Pull Request
 
-Usar referencias de cierre de GitHub como `Closes #123` en el cuerpo del Pull Request. Esta convención mejora la trazabilidad, pero la documentación por sí sola no impone su cumplimiento. Para exigirlo técnicamente, deberá añadirse un workflow de GitHub Actions que falle cuando un Pull Request hacia `main` no incluya una referencia válida a un Issue.
+El workflow `.github/workflows/validate-pr-issue.yml` valida Pull Requests cuando se abren, editan, reabren, reciben nuevos commits o pasan a estar listos para revisión. Exige al menos una referencia explícita como `Closes #123`, `Fixes #123`, `Resolves #123` o `Refs #123`, y consulta la API de GitHub para comprobar que cada número referenciado corresponde a un Issue existente del mismo repositorio, no a otro Pull Request.
 
-Ese workflow debe implementarse mediante su propio Issue y Pull Request, con criterios de aceptación y pruebas explícitos.
+El check informa de errores accionables si falta una referencia o si una referencia no se puede validar. Usa permisos de solo lectura para Issues y Pull Requests. No fusiona cambios automáticamente.
+
+**Limitación importante:** crear el workflow no bloquea por sí solo la integración. Para hacerlo obligatorio, hay que ejecutar el workflow al menos una vez y configurar el check `validate-issue-link` como requerido en el ruleset que protege `main`. Hasta completar ese paso, el control reporta fallos pero puede no impedir un merge.
+
+La implementación se gestiona mediante el Issue #3 y el Pull Request asociado, conforme al flujo de gobernanza.
 
 ## Convenciones lingüísticas
 
