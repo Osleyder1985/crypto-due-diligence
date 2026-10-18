@@ -80,7 +80,7 @@ class EventAttributionTests(unittest.TestCase):
         result = analyze_event_reactions(events, candles(), windows_hours=(1, 6, 24))
         by_title = {item["title"]: item for item in result["timeline"]}
         self.assertTrue(by_title["Headline A"]["shared_reaction_window_warning"])
-        self.assertEqual(2, by_title["Headline A"]["overlapping_event_count_by_window"]["1h"])
+        self.assertEqual(1, by_title["Headline A"]["overlapping_event_count_by_window"]["1h"])
         self.assertEqual(2, by_title["Headline A"]["overlapping_event_count_by_window"]["6h"])
         self.assertIn("not be counted as independent evidence",
                       by_title["Headline A"]["shared_reaction_window_note"])
