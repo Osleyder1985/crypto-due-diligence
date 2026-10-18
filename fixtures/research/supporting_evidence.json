@@ -1,0 +1,108 @@
+{
+  "case_id": "synthetic_supporting_evidence_v1",
+  "description": "Synthetic-only example with one source, a verified claim, an event and market observations. Not a real market event.",
+  "records": [
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Source",
+      "record": {
+        "source_id": "src_synthetic_primary",
+        "source_type": "OFFICIAL_ANNOUNCEMENT",
+        "publisher": "Synthetic Example Project",
+        "title": "Synthetic protocol announcement",
+        "url": "https://example.org/synthetic-announcement",
+        "published_at": "2026-01-01T12:00:00Z",
+        "retrieved_at": "2026-01-01T12:02:00Z",
+        "content_hash": "sha256:synthetic-fixture-not-a-real-digest",
+        "reliability_assessment": "Synthetic fixture only",
+        "access_method": "fixture",
+        "notes": "No real announcement exists."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Evidence",
+      "record": {
+        "evidence_id": "evd_synthetic_announcement",
+        "source_id": "src_synthetic_primary",
+        "claim": "The synthetic project announced a protocol upgrade.",
+        "evidence_role": "SUPPORTS",
+        "excerpt_or_locator": "Synthetic fixture assertion; not an external factual claim.",
+        "captured_at": "2026-01-01T12:02:00Z",
+        "content_hash": "sha256:synthetic-fixture-not-a-real-digest",
+        "verification_method": "Fixture construction only; not independently verified.",
+        "verification_status": "VERIFIED",
+        "limitations": "Verification state is illustrative and does not refer to a real-world source."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "Event",
+      "record": {
+        "schema_version": "1.0.0",
+        "event_id": "evt_synthetic_upgrade",
+        "asset_id": "chain:synthetic:asset:token",
+        "asset_symbol": "SYN",
+        "event_type": "PROJECT_FUNDAMENTALS",
+        "event_subtype": "protocol_upgrade",
+        "title": "Synthetic protocol upgrade announcement",
+        "summary": "Illustrative event used to exercise the evidence pipeline.",
+        "occurred_at": "2026-01-01T12:00:00Z",
+        "published_at": "2026-01-01T12:00:00Z",
+        "captured_at": "2026-01-01T12:02:00Z",
+        "recorded_at": "2026-01-01T12:03:00Z",
+        "verification_status": "VERIFIED",
+        "event_status": "ANNOUNCED",
+        "source_ids": [
+          "src_synthetic_primary"
+        ],
+        "evidence_ids": [
+          "evd_synthetic_announcement"
+        ],
+        "observed_price_effect": {
+          "direction": "positive_observed",
+          "return_pct": 5.4,
+          "window_start": "2026-01-01T12:00:00Z",
+          "window_end": "2026-01-01T13:00:00Z",
+          "methodology_version": "movement-detection/1.0.0"
+        },
+        "duplicate_of": null,
+        "notes": "Synthetic prices and times; temporal association is not causal proof."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "MarketObservation",
+      "record": {
+        "observation_id": "obs_synthetic_return",
+        "asset_id": "chain:synthetic:asset:token",
+        "metric": "price_return",
+        "value": 5.4,
+        "unit": "percent",
+        "window_start": "2026-01-01T12:00:00Z",
+        "window_end": "2026-01-01T13:00:00Z",
+        "venue_or_dataset": "synthetic_fixture",
+        "methodology_version": "movement-detection/1.0.0",
+        "captured_at": "2026-01-01T13:01:00Z",
+        "limitations": "Synthetic value; not market data."
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "record_type": "MarketObservation",
+      "record": {
+        "observation_id": "obs_synthetic_volume",
+        "asset_id": "chain:synthetic:asset:token",
+        "metric": "relative_volume",
+        "value": 2.8,
+        "unit": "ratio",
+        "window_start": "2026-01-01T12:00:00Z",
+        "window_end": "2026-01-01T13:00:00Z",
+        "venue_or_dataset": "synthetic_fixture",
+        "methodology_version": "movement-detection/1.0.0",
+        "captured_at": "2026-01-01T13:01:00Z",
+        "limitations": "Synthetic value; not market data."
+      }
+    }
+  ]
+}
