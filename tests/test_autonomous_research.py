@@ -1,7 +1,7 @@
 import json
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -59,6 +59,29 @@ class AutonomousResearchTests(unittest.TestCase):
         self.assertIn("after:2025-01-01",query)
         self.assertIn("before:2025-01-08",query)
         self.assertEqual(result["entries"],[])
+    def test_prediction_memory_accumulates_across_research_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            memory_path=Path(directory)/"prediction-memory.json"
+            cases_path=Path(directory)/"cases.json"
+            def fetch(symbol,start,end,interval):
+                price=100.0; rows=[]
+                for i in range(200):
+                    change=0.0015*((i%11)-5)/5.0
+                    price*=1+change
+                    stamp=(start+timedelta(hours=i)).isoformat(timespec="seconds").replace("+00:00","Z")
+                    rows.append(candle(stamp,price/(1+change),price,100+i%13))
+                return {"provider":"mock","symbol":symbol+"USDT","interval":interval,"retrieved_at":"2025-01-01T00:00:00Z","candles":rows}
+            def feed(*args,**kwargs): raise OSError("offline")
+            start1=datetime(2025,1,1,tzinfo=timezone.utc); end1=start1+timedelta(hours=200)
+            first=run("SOL",start1,end1,output_dir=Path(directory)/"r1",cases_path=cases_path,
+                prediction_memory_path=memory_path,market_fetcher=fetch,feed_collector=feed)
+            start2=datetime(2025,2,1,tzinfo=timezone.utc); end2=start2+timedelta(hours=200)
+            second=run("SOL",start2,end2,output_dir=Path(directory)/"r2",cases_path=cases_path,
+                prediction_memory_path=memory_path,market_fetcher=fetch,feed_collector=feed)
+            self.assertGreater(first["prediction_memory"]["new_examples_added"],0)
+            self.assertGreater(second["prediction_memory"]["prior_eligible_example_count"],0)
+            self.assertEqual(second["prediction_signal"]["status"],"EXPERIMENTAL_SIGNAL")
+            self.assertLessEqual(second["prediction_signal"]["latest_training_label_timestamp"],second["prediction_signal"]["as_of"])
     def test_end_to_end_writes_report_and_unreviewed_case(self):
         start=datetime(2025,1,1,tzinfo=timezone.utc); end=datetime(2025,1,2,tzinfo=timezone.utc)
         market={"provider":"mock","symbol":"SOLUSDT","interval":"1h","retrieved_at":"2025-01-02T00:00:00Z",
