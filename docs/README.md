@@ -11,6 +11,7 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Aprendizaje histórico controlado](historical-learning.md): memoria versionada de casos revisados, búsqueda explicable de precedentes y resúmenes descriptivos.
 - [Investigación autónoma por moneda y período](autonomous-research.md): consulta de mercado, recopilación de feeds, informe y registro de casos.
 - [Evaluación temporal de predicciones](prediction-evaluation.md): evaluación walk-forward sin fuga temporal y comparación con una línea base de momentum.
+- [Memoria persistente de resultados](prediction-memory.md): conserva retornos observados y reutiliza ejemplos maduros de investigaciones anteriores.
 
 ## Data contracts
 
@@ -25,6 +26,7 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Research pipeline entry point](../research_pipeline.py): valida registros estructuralmente y luego semánticamente.
 - [Autonomous research entry point](../autonomous_research.py): investiga un ticker en un intervalo UTC y conserva un caso preliminar.
 - [Prediction evaluation entry point](../prediction_evaluation.py): compara un clasificador experimental con momentum en una evaluación temporal.
+- [Persistent prediction memory](../prediction_memory.py): almacena ejemplos de retorno futuro con filtros temporales e idempotencia.
 - [Research fixtures](../fixtures/research/): casos sintéticos completos, contradictorios y con datos insuficientes.
 
 ## Running checks
