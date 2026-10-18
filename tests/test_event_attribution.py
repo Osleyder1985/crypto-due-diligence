@@ -31,6 +31,22 @@ class EventAttributionTests(unittest.TestCase):
         self.assertGreater(item["reactions"]["1h"]["return_pct"], 0)
         self.assertIn("not evidence of causation", item["assessment_note"])
 
+    def test_publication_timestamp_provenance_is_exposed_in_timeline(self):
+        result = analyze_event_reactions([{
+            "title": "BTC news", "published_at": "2026-01-01T10:00:00Z",
+            "publication_timestamp_raw": "Thu, 01 Jan 2026 10:00:00 GMT",
+            "publication_timestamp_field": "pubDate",
+            "publication_timestamp_quality": "OBSERVED_PUBLICATION",
+            "normalized_publication_timestamp": "2026-01-01T10:00:00Z",
+        }], candles(), windows_hours=(1,))
+        item = result["timeline"][0]
+        self.assertEqual("pubDate", item["publication_timestamp_field"])
+        self.assertEqual("OBSERVED_PUBLICATION", item["publication_timestamp_quality"])
+        self.assertEqual("Thu, 01 Jan 2026 10:00:00 GMT", item["publication_timestamp_raw"])
+        self.assertEqual("2026-01-01T10:00:00Z", item["normalized_publication_timestamp"])
+        # A reliable publication timestamp is still not proof of the actual event time.
+        self.assertEqual("LOW", item["timestamp_confidence"])
+
     def test_missing_timestamp_and_short_coverage_are_explicit(self):
         result = analyze_event_reactions([{"title": "No time"}], candles(2), windows_hours=(24,))
         self.assertEqual("UNAVAILABLE_TIMESTAMP", result["timeline"][0]["reactions"]["24h"]["status"])
