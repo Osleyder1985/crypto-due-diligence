@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/run-historical-research.yml"
+      - "autonomous_research.py"
+      - "event_attribution.py"
+      - "event_study.py"
+      - "evidence_collector.py"
   workflow_dispatch:
     inputs:
       symbol:
