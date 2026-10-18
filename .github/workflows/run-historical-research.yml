@@ -108,11 +108,21 @@ jobs:
           python event_study.py "$SYMBOL" "$START_DATE" "$END_DATE" \
             --interval "$INTERVAL" --output-dir artifacts/event-study
 
+      - name: Verify research reports exist
+        if: always()
+        run: |
+          echo "Files generated under artifacts/:"
+          find artifacts -type f -print 2>/dev/null | sort || true
+          if ! find artifacts -type f -print -quit 2>/dev/null | grep -q .; then
+            echo "::error::No research report files were generated; refusing to report a successful run without artifacts."
+            exit 1
+          fi
+
       - name: Upload research reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: crypto-research-${{ inputs.symbol || 'BTC' }}-${{ inputs.start_date || '2026-07-01' }}-${{ inputs.end_date || '2026-09-21' }}
           path: artifacts/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
