@@ -19,6 +19,8 @@ Intervalos admitidos: 1m, 5m, 15m, 30m, 1h, 4h y 1d. El informe Markdown y el re
 
 ## Qué recopila y documenta
 
+Los informes existentes mantienen su formato general; la cronología de eventos se añade como una sección complementaria.
+
 - Datos de velas OHLCV del endpoint público de Binance para el par TICKERUSDT.
 - Retorno observado, extremos, volumen, huecos detectables y comparación con BTC cuando está disponible.
 - Coincidencias literales del ticker en feeds RSS/Atom públicos configurados en autonomous_research.py, dentro de la ventana de publicación solicitada.
