@@ -185,13 +185,25 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       f"- First open / last close: {stats['start_price']} / {stats['end_price']}",f"- High / low: {stats['high']} / {stats['low']}",
       f"- Candles: {stats['candle_count']}; volume: {stats['total_volume_base_asset']}",f"- Gap count: {stats['observed_gap_count']}"]
     if "btc_return_pct" in stats: lines += [f"- BTC return: {stats['btc_return_pct']:.4f}%",f"- Relative return: {stats['relative_return_pct']:.4f}%"]
+    lines += ["","## Experimental next-direction signal","",
+      f"- Signal status: {prediction_signal.get('status','UNKNOWN')}",
+      f"- Direction: {prediction_signal.get('signal','unavailable')}",
+      f"- As of: {prediction_signal.get('as_of','unavailable')}",
+      f"- Neighbor votes: {prediction_signal.get('neighbor_votes','unavailable')}",
+      f"- Historical evaluation status: {prediction_evaluation.get('status','UNKNOWN')}"]
+    if prediction_signal.get("reason"): lines.append(f"- Reason: {prediction_signal['reason']}")
+    if prediction_evaluation.get("metrics"):
+        lines.append(f"- Walk-forward samples: {prediction_evaluation['prediction_count']}")
+        lines.append(f"- KNN directional accuracy: {prediction_evaluation['metrics']['knn']['directional_accuracy']}")
+        lines.append(f"- Momentum baseline accuracy: {prediction_evaluation['metrics']['momentum_baseline']['directional_accuracy']}")
+    lines.append("This signal is experimental; neighbor vote share is not a calibrated probability and does not establish why a move occurred.")
     lines += ["","## Evidence leads",""]
     if context["entries"]:
         for item in context["entries"]: lines.append(f"- {item['title']} — {item['publisher']} — {item['published_at']} — {item['url']} — UNVERIFIED")
     else: lines.append("No matching feed entries found. This does not establish that no catalyst existed.")
     lines += ["","## Historical precedents",f"Eligible reviewed cases in memory: {report['historical_summary']['eligible_case_count']}."]
     lines += [f"- {x['case_id']}: score {x['similarity_score']}, label {x['outcome_label']}" for x in precedents]
-    lines += ["","## Interpretation","The report describes price/volume behavior and collects contextual leads. It does not prove causes or predict future direction. Human review and verified outcomes are required before a case contributes to learning.",""]
+    lines += ["","## Interpretation","The report describes price/volume behavior, collects contextual leads, and may emit an experimental next-direction signal when enough historical candles exist. The signal is not a calibrated probability and does not prove causes. Human review and verified outcomes are required before a causal case contributes to learning.",""]
     report["markdown"]="\n".join(lines)
     out=Path(output_dir); out.mkdir(parents=True,exist_ok=True)
     stem=f"{symbol}_{start.date()}_{(end-timedelta(days=1)).date()}"
@@ -214,7 +226,7 @@ def main(argv=None):
     print(json.dumps({"ok":True,"symbol":result["asset_symbol"],"return_pct":result["market_analysis"]["return_pct"],
       "direction":result["market_analysis"]["direction"],"matching_evidence":len(result["contextual_evidence"]["entries"]),
       "report":result["output_markdown"],"case_id":result["historical_case"]["case_id"],
-      "warning":"No causal attribution or price forecast is produced."},indent=2))
+      "warning":"Experimental direction signal only; no causal attribution or guaranteed forecast."},indent=2))
     return 0
 
 if __name__=="__main__": raise SystemExit(main())
