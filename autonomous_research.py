@@ -181,8 +181,16 @@ def collect_context(symbol,start,end,feed_collector=collect_feed):
                 if when and start<=when<end and re.search(rf"(?<![A-Z0-9]){re.escape(symbol)}(?![A-Z0-9])",text.upper()):
                     title=s.get("title") or ""
                     title_match=bool(re.search(rf"(?<![A-Z0-9]){re.escape(symbol)}(?![A-Z0-9])",title.upper()))
+                    notes=s.get("notes") or ""
+                    def note_value(key):
+                        match=re.search(rf"(?:^|; )"+re.escape(key)+r"=([^;]*)",notes)
+                        return match.group(1).strip() if match else None
                     entries.append({"title":title,"url":s.get("url"),"publisher":s.get("publisher"),
                       "published_at":published,"excerpt":(e.get("excerpt_or_locator") or "")[:1000],
+                      "publication_timestamp_raw":note_value("original_published_value"),
+                      "publication_timestamp_field":note_value("timestamp_field"),
+                      "publication_timestamp_quality":note_value("timestamp_quality") or "LEGACY_OR_UNKNOWN",
+                      "normalized_publication_timestamp":note_value("normalized_publication_timestamp") or published,
                       "match_quality":"STRONG" if title_match else "WEAK",
                       "verification_status":e.get("verification_status","UNVERIFIED"),
                       "source_id":s.get("source_id"),"evidence_id":e.get("evidence_id")})
