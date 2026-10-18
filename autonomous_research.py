@@ -288,6 +288,9 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
         for item in event_study["timeline"]:
             lines.append(f"- {item.get('title') or '(untitled)'} — {item.get('publisher') or 'unknown'} — {item.get('published_at_utc') or 'timestamp unavailable'} — {item['timestamp_source']} ({item['timestamp_confidence']}) — {item.get('assessment', 'inconclusive')} — grouped sources: {item.get('duplicate_count', 1)}")
             if item.get("weak_match_warning"): lines.append(f"  - Match warning: {item['weak_match_warning']}")
+            if item.get("shared_reaction_window_warning"):
+                counts = ", ".join(f"{window}: {count} other event(s)" for window, count in item["overlapping_event_count_by_window"].items() if count)
+                lines.append(f"  - OVERLAPPING WINDOWS: {counts}. {item['shared_reaction_window_note']}")
             lines.append("  - Alternative explanations to review: " + "; ".join(item.get("alternative_explanations", [])))
             for window, metric in item["reactions"].items():
                 if metric.get("status") == "COMPUTED":

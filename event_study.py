@@ -56,6 +56,9 @@ def run_event_study(symbol, start, end, interval="1h", output_dir="event_studies
                   f"- Timestamp basis/confidence: {item['timestamp_source']} / {item['timestamp_confidence']}",
                   f"- Source: {item.get('url') or 'unavailable'}",
                   f"- Assessment: {item['assessment']} — {item['assessment_note']}"]
+        if item.get("shared_reaction_window_warning"):
+            counts = ", ".join(f"{window}: {count} other event(s)" for window, count in item["overlapping_event_count_by_window"].items() if count)
+            lines.append(f"- OVERLAPPING WINDOWS: {counts}. {item['shared_reaction_window_note']}")
         for window, metric in item["reactions"].items():
             if metric["status"] == "COMPUTED":
                 lines.append(f"- {window}: return {metric['return_pct']:.4f}%; volume change {metric['volume_change_pct_vs_prior_24_candles']}; realized volatility RSS {metric['realized_volatility_pct_rss']}; run-up {metric['max_runup_pct']}%; drawdown {metric['max_drawdown_pct']}%")

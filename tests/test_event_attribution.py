@@ -71,6 +71,21 @@ class EventAttributionTests(unittest.TestCase):
         ]
         self.assertEqual(2, len(deduplicate_events(events)))
 
+    def test_events_with_same_anchor_are_flagged_as_overlapping_observations(self):
+        events = [
+            {"title": "Headline A", "published_at": "2026-01-01T10:00:00Z"},
+            {"title": "Headline B", "published_at": "2026-01-01T10:00:00Z"},
+            {"title": "Headline C", "published_at": "2026-01-01T11:00:00Z"},
+        ]
+        result = analyze_event_reactions(events, candles(), windows_hours=(1, 6, 24))
+        by_title = {item["title"]: item for item in result["timeline"]}
+        self.assertTrue(by_title["Headline A"]["shared_reaction_window_warning"])
+        self.assertEqual(1, by_title["Headline A"]["overlapping_event_count_by_window"]["1h"])
+        self.assertEqual(2, by_title["Headline A"]["overlapping_event_count_by_window"]["6h"])
+        self.assertIn("not be counted as independent evidence",
+                      by_title["Headline A"]["shared_reaction_window_note"])
+        self.assertEqual(0, by_title["Headline C"]["overlapping_event_count_by_window"]["1h"])
+
     def test_weak_and_unknown_asset_matches_are_flagged(self):
         weak = analyze_event_reactions([{"title": "Macro update", "published_at": "2026-01-01T10:00:00Z",
                                          "match_quality": "WEAK"}], candles(), windows_hours=(6,))

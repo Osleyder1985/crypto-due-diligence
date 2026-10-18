@@ -123,8 +123,13 @@ def parse_feed(xml_text, feed_url, publisher, source_id, evidence_id, captured_a
         item_source_id = f"{source_id}_{suffix}"
         item_evidence_id = f"{evidence_id}_{suffix}"
         item_url = link or feed_url
+        # Aggregator feeds (for example Google News) may identify the original
+        # publisher on each RSS item. Preserve it instead of labeling every
+        # article with the collector/feed name.
+        item_publisher = _child_text(entry, {"source"}) or publisher
         provenance = (
-            f"feed_url={feed_url}; feed_title={feed_title or ''}; entry_id={original_id or ''}; "
+            f"feed_url={feed_url}; feed_title={feed_title or ''}; feed_publisher={publisher}; "
+            f"item_publisher={item_publisher}; entry_id={original_id or ''}; "
             f"original_published_value={published_raw or ''}; collector_version={COLLECTOR_VERSION}; "
             "Feed metadata is not independent verification of authorship or truth."
         )
@@ -132,7 +137,7 @@ def parse_feed(xml_text, feed_url, publisher, source_id, evidence_id, captured_a
             "schema_version": "1.0.0", "record_type": "Source",
             "record": {
                 "source_id": item_source_id, "source_type": "NEWS_MEDIA",
-                "publisher": publisher, "title": title, "url": item_url,
+                "publisher": item_publisher, "title": title, "url": item_url,
                 "published_at": published_at, "retrieved_at": captured_at,
                 "content_hash": f"sha256:{digest}", "reliability_assessment": None,
                 "access_method": "RSS/Atom feed", "notes": provenance,
