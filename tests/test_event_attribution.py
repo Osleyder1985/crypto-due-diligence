@@ -80,9 +80,9 @@ class EventAttributionTests(unittest.TestCase):
         self.assertEqual("UNKNOWN", unknown["timeline"][0]["match_quality"])
         self.assertIsNotNone(unknown["timeline"][0]["weak_match_warning"])
 
-    def test_reaction_threshold_is_not_called_a_hypothesis(self):
+    def test_large_observed_reaction_is_not_called_causal(self):
         result = analyze_event_reactions([{"title": "Headline", "published_at": "2026-01-01T10:00:00Z",
-                                           "match_quality": "STRONG"}], candles(), windows_hours=(1,))
+                                           "match_quality": "STRONG"}], candles(), windows_hours=(6,))
         item = result["timeline"][0]
         self.assertEqual("observed_reaction", item["assessment"])
         self.assertIn("not evidence of causation", item["assessment_note"])
