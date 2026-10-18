@@ -125,8 +125,11 @@ def collect_context(symbol,start,end,feed_collector=collect_feed):
                 except ValueError: when=None
                 text=(s.get("title") or "")+" "+(e.get("excerpt_or_locator") or "")
                 if when and start<=when<end and re.search(rf"(?<![A-Z0-9]){re.escape(symbol)}(?![A-Z0-9])",text.upper()):
-                    entries.append({"title":s.get("title"),"url":s.get("url"),"publisher":s.get("publisher"),
+                    title=s.get("title") or ""
+                    title_match=bool(re.search(rf"(?<![A-Z0-9]){re.escape(symbol)}(?![A-Z0-9])",title.upper()))
+                    entries.append({"title":title,"url":s.get("url"),"publisher":s.get("publisher"),
                       "published_at":published,"excerpt":(e.get("excerpt_or_locator") or "")[:1000],
+                      "match_quality":"STRONG" if title_match else "WEAK",
                       "verification_status":e.get("verification_status","UNVERIFIED"),
                       "source_id":s.get("source_id"),"evidence_id":e.get("evidence_id")})
         except (CollectionError,OSError,ValueError,KeyError,TypeError) as exc:
@@ -225,10 +228,13 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
         lines.append(f"- Momentum baseline accuracy: {prediction_evaluation['metrics']['momentum_baseline']['directional_accuracy']}")
     lines.append("This signal is experimental; neighbor vote share is not a calibrated probability and does not establish why a move occurred.")
     lines += ["","## Event timeline and observed reactions","",
-      "These are descriptive post-publication price reactions, not proof that a headline caused the move."]
+      "These are descriptive post-publication price reactions, not proof that a headline caused the move.",
+      f"Raw news leads: {event_study.get('raw_event_count', len(context['entries']))}; after heuristic deduplication: {event_study.get('deduplicated_event_count', len(event_study['timeline']))}."]
     if event_study["timeline"]:
         for item in event_study["timeline"]:
-            lines.append(f"- {item.get('title') or '(untitled)'} — {item.get('publisher') or 'unknown'} — {item.get('published_at_utc') or 'timestamp unavailable'} — {item['timestamp_source']} ({item['timestamp_confidence']})")
+            lines.append(f"- {item.get('title') or '(untitled)'} — {item.get('publisher') or 'unknown'} — {item.get('published_at_utc') or 'timestamp unavailable'} — {item['timestamp_source']} ({item['timestamp_confidence']}) — {item.get('assessment', 'inconclusive')} — grouped sources: {item.get('duplicate_count', 1)}")
+            if item.get("weak_match_warning"): lines.append(f"  - Match warning: {item['weak_match_warning']}")
+            lines.append("  - Alternative explanations to review: " + "; ".join(item.get("alternative_explanations", [])))
             for window, metric in item["reactions"].items():
                 if metric.get("status") == "COMPUTED":
                     lines.append(f"  - {window}: return {metric['return_pct']:.4f}%; volume delta {metric['volume_change_pct_vs_prior_24_candles']}; run-up {metric['max_runup_pct']}%; drawdown {metric['max_drawdown_pct']}%; volatility RSS {metric['realized_volatility_pct_rss']}")
