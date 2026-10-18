@@ -36,12 +36,12 @@ class EventAttributionTests(unittest.TestCase):
             "title": "BTC news", "published_at": "2026-01-01T10:00:00Z",
             "publication_timestamp_raw": "Thu, 01 Jan 2026 10:00:00 GMT",
             "publication_timestamp_field": "pubDate",
-            "publication_timestamp_quality": "OBSERVED_PUBLICATION",
+            "publication_timestamp_quality": "FEED_REPORTED_PUBLICATION",
             "normalized_publication_timestamp": "2026-01-01T10:00:00Z",
         }], candles(), windows_hours=(1,))
         item = result["timeline"][0]
         self.assertEqual("pubDate", item["publication_timestamp_field"])
-        self.assertEqual("OBSERVED_PUBLICATION", item["publication_timestamp_quality"])
+        self.assertEqual("FEED_REPORTED_PUBLICATION", item["publication_timestamp_quality"])
         self.assertEqual("Thu, 01 Jan 2026 10:00:00 GMT", item["publication_timestamp_raw"])
         self.assertEqual("2026-01-01T10:00:00Z", item["normalized_publication_timestamp"])
         # A reliable publication timestamp is still not proof of the actual event time.

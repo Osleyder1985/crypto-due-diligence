@@ -44,7 +44,7 @@ class EvidenceCollectorTests(unittest.TestCase):
                                 captured_at="2026-08-20T16:00:00Z")["records"][0]["record"]
             self.assertEqual("2026-08-20T11:00:00Z", source["published_at"])
             self.assertIn("timestamp_field=published", source["notes"])
-            self.assertIn("timestamp_quality=OBSERVED_PUBLICATION", source["notes"])
+            self.assertIn("timestamp_quality=FEED_REPORTED_PUBLICATION", source["notes"])
 
     def test_rss_pubdate_wins_over_updated_and_timezone_is_normalized(self):
         xml = """<rss version="2.0"><channel><title>Feed</title><item>
@@ -54,7 +54,7 @@ class EvidenceCollectorTests(unittest.TestCase):
         source = parse_feed(xml, "https://example.org/feed", "Example", "src", "ev")["records"][0]["record"]
         self.assertEqual("2026-08-20T11:00:00Z", source["published_at"])
         self.assertIn("timestamp_field=pubDate", source["notes"])
-        self.assertIn("timestamp_quality=OBSERVED_PUBLICATION", source["notes"])
+        self.assertIn("timestamp_quality=FEED_REPORTED_PUBLICATION", source["notes"])
 
     def test_updated_is_labeled_fallback_when_publication_timestamp_is_invalid(self):
         xml = """<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>BTC news</title>
