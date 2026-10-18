@@ -136,7 +136,7 @@ Las ventanas, los mercados y las unidades deben ser comparables. Una variación 
 
 ## 9. Ejemplo JSON ilustrativo
 
-El siguiente ejemplo muestra la estructura y los nombres de campo; los identificadores, URL y valores son ficticios y no representan un evento real. Es un ejemplo de registro, no un JSON Schema formal.
+El siguiente ejemplo muestra la estructura y los nombres de campo; los identificadores, URL y valores son ficticios y no representan un evento real. El contrato ejecutable se encuentra en [`schemas/evidence.schema.json`](../schemas/evidence.schema.json), versión `1.0.0`. Cada registro se entrega en un sobre con `schema_version`, `record_type` y `record`; los tipos admitidos son `Event`, `Source`, `Evidence` y `MarketObservation`.
 
 ```json
 {
@@ -183,7 +183,34 @@ El objeto `observed_price_effect` es descriptivo. Si no se ha ejecutado un cálc
 - Para observaciones cuantitativas, conservar dataset, unidad, ventana y versión de metodología.
 - Los cambios de esquema incompatibles requieren un cambio de versión mayor; adiciones compatibles, versión menor; correcciones editoriales sin impacto semántico, versión de parche.
 
-## 11. Conflictos, rumores y correcciones
+## 11. Contrato ejecutable y pruebas
+
+El contrato [`schemas/evidence.schema.json`](../schemas/evidence.schema.json) formaliza la estructura de los cuatro tipos de registro, los campos obligatorios, los valores controlados y los timestamps UTC. Los registros se envuelven así:
+
+```json
+{
+  "schema_version": "1.0.0",
+  "record_type": "Event",
+  "record": {}
+}
+```
+
+Sustituir `record` por un registro completo del tipo declarado. `record_type` y la estructura de `record` deben coincidir. Los campos desconocidos se rechazan para evitar errores silenciosos. Los valores de `observed_price_effect.direction` aceptados son `UNKNOWN`, `positive_observed`, `negative_observed`, `mixed_or_reversing`, `no_material_move_detected`, `inconclusive` y `not_assessed`.
+
+### Ejecutar las pruebas localmente
+
+Se requiere Python 3.12 o compatible y la dependencia `jsonschema`:
+
+```sh
+python -m pip install "jsonschema>=4.18,<5"
+python -m unittest discover -s tests -v
+```
+
+El workflow [`validate-evidence-schema.yml`](../.github/workflows/validate-evidence-schema.yml) ejecuta estas pruebas en Pull Requests y en cambios relevantes sobre `main`.
+
+JSON Schema comprueba la forma, los tipos, los campos y las enumeraciones. **No** comprueba que los IDs referenciados existan, que una fuente sea auténtica, que la evidencia sea verdadera, que `window_start` sea anterior a `window_end` en todos los registros, ni que un evento haya causado un movimiento de precio. Estas comprobaciones requieren validación semántica adicional y datos externos. El formato de fecha valida timestamps con sufijo UTC `Z`; los hashes solo ayudan a detectar cambios en el artefacto comparado.
+
+## 12. Conflictos, rumores y correcciones
 
 1. Registrar rumores como afirmaciones no verificadas, con fuente y hora de captura.
 2. Separar la existencia de una publicación de la verdad de lo que afirma.
@@ -192,7 +219,7 @@ El objeto `observed_price_effect` es descriptivo. Si no se ha ejecutado un cálc
 5. Si una publicación desaparece o se edita, registrar la nueva captura y la diferencia observada; no dar por hecho el motivo.
 6. Para fuentes sindicadas o republicaciones, identificar la fuente original cuando sea posible y evitar contar copias como corroboraciones independientes.
 
-## 12. Seguridad, privacidad y retención
+## 13. Seguridad, privacidad y retención
 
 - No almacenar claves privadas, seed phrases, API keys, cookies de sesión ni credenciales.
 - Evitar datos personales no necesarios; cumplir las políticas de retención y licencias aplicables.
@@ -200,11 +227,11 @@ El objeto `observed_price_effect` es descriptivo. Si no se ha ejecutado un cálc
 - El hash no sustituye controles de acceso, firma, auditoría ni verificación de autenticidad.
 - Documentar la procedencia y los cambios sin exponer secretos en logs, commits o issues públicos.
 
-## 13. Relación con la atribución
+## 14. Relación con la atribución
 
 Este esquema prepara los insumos para el análisis, pero no determina la causa de un movimiento. La atribución debe realizarse en un registro separado que incluya hipótesis competidoras, ventanas de evento y mercado, retornos de referencia, factores de confusión, calidad de datos y nivel de confianza. Una asociación temporal aislada no debe etiquetarse como causalidad demostrada.
 
-## 14. Evolución del esquema
+## 15. Evolución del esquema
 
 - Mantener este documento como contrato de datos versionado.
 - Cambiar `schema_version` cuando un registro use una nueva versión.
