@@ -93,7 +93,7 @@ def calculate_metrics(bids, asks, depth_band_pct=Decimal("1"), trade_size_quote=
         remaining = size
         filled_base = Decimal(0)
         filled_quote = Decimal(0)
-        ordered = sorted(levels, key=lambda item: item[0], reverse=(side == "sell"))
+        ordered = sorted(levels.items(), key=lambda item: item[0], reverse=(side == "sell"))
         for price, quantity in ordered:
             take_quote = min(remaining, price * quantity)
             if take_quote > 0:
