@@ -55,6 +55,7 @@ def run_event_study(symbol, start, end, interval="1h", output_dir="event_studies
                   f"- Published UTC: {item.get('published_at_utc') or 'unavailable'}",
                   f"- Timestamp basis/confidence: {item['timestamp_source']} / {item['timestamp_confidence']}",
                   f"- Source timestamp metadata: {item.get('publication_timestamp_quality', 'LEGACY_OR_UNKNOWN')} (field: {item.get('publication_timestamp_field') or 'unknown'}; raw: {item.get('publication_timestamp_raw') or 'unavailable'})",
+                  f"- Temporal overlap cluster: {item.get('overlap_cluster_id') or 'none'} (size: {item.get('overlap_cluster_size', 0)}; not an economic-event classification)",
                   f"- Source: {item.get('url') or 'unavailable'}",
                   f"- Assessment: {item['assessment']} — {item['assessment_note']}"]
         if item.get("shared_reaction_window_warning"):
