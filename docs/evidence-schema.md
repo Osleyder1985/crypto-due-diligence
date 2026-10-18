@@ -136,12 +136,15 @@ Las ventanas, los mercados y las unidades deben ser comparables. Una variación 
 
 ## 9. Ejemplo JSON ilustrativo
 
-El siguiente ejemplo muestra la estructura y los nombres de campo; los identificadores, URL y valores son ficticios y no representan un evento real. El contrato ejecutable se encuentra en [`schemas/evidence.schema.json`](../schemas/evidence.schema.json), versión `1.0.0`. Cada registro se entrega en un sobre con `schema_version`, `record_type` y `record`; los tipos admitidos son `Event`, `Source`, `Evidence` y `MarketObservation`.
+El siguiente ejemplo muestra el sobre completo y el registro `Event`; los identificadores, URL y valores son ficticios y no representan un evento real. El contrato ejecutable se encuentra en [`schemas/evidence.schema.json`](../schemas/evidence.schema.json), versión `1.0.0`. Los tipos admitidos son `Event`, `Source`, `Evidence` y `MarketObservation`.
 
 ```json
 {
   "schema_version": "1.0.0",
-  "event_id": "evt_00000000-0000-4000-8000-000000000001",
+  "record_type": "Event",
+  "record": {
+    "schema_version": "1.0.0",
+    "event_id": "evt_00000000-0000-4000-8000-000000000001",
   "asset_id": "chain:example-network:asset:example-token",
   "asset_symbol": "EXM",
   "event_type": "PROJECT_FUNDAMENTALS",
@@ -164,7 +167,8 @@ El siguiente ejemplo muestra la estructura y los nombres de campo; los identific
     "methodology_version": null
   },
   "duplicate_of": null,
-  "notes": "Announcement verified as published; implementation and any causal price effect remain unverified."
+    "notes": "Announcement verified as published; implementation and any causal price effect remain unverified."
+  }
 }
 ```
 
