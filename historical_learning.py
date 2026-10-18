@@ -52,6 +52,28 @@ def validate_case(case: dict[str, Any]) -> list[str]:
     if not isinstance(case, dict):
         return ["case must be an object"]
     errors = []
+    allowed_keys = {
+        "schema_version", "case_id", "asset_id", "asset_symbol", "event_type",
+        "detected_at", "window_minutes", "movement_direction", "return_pct",
+        "candidate_factors", "evidence_ids", "source_case_ids", "outcome_label",
+        "review_status", "verification_status", "reviewer", "reviewed_at",
+        "methodology_version", "notes",
+    }
+    unknown_keys = sorted(set(case) - allowed_keys)
+    if unknown_keys:
+        errors.append(f"unexpected fields: {unknown_keys}")
+    required_fields = {
+        "schema_version", "case_id", "asset_id", "event_type", "detected_at",
+        "window_minutes", "movement_direction", "return_pct", "candidate_factors",
+        "evidence_ids", "source_case_ids", "outcome_label", "review_status",
+        "verification_status", "methodology_version",
+    }
+    missing_fields = sorted(required_fields - set(case))
+    if missing_fields:
+        errors.append(f"missing required fields: {missing_fields}")
+    for key in ("asset_symbol", "notes"):
+        if key in case and case[key] is not None and not isinstance(case[key], str):
+            errors.append(f"{key} must be a string or null")
     required_strings = (
         "case_id", "asset_id", "event_type", "detected_at",
         "movement_direction", "outcome_label", "review_status",
@@ -219,6 +241,7 @@ def summarize_outcomes(cases: Iterable[dict[str, Any]]) -> dict[str, Any]:
     Counts are descriptive associations only. No causal rates or price forecasts are
     computed; sample size is always exposed.
     """
+    cases = list(cases)
     eligible = [case for case in cases if is_learning_eligible(case)]
     groups: dict[str, Counter] = defaultdict(Counter)
     for case in eligible:
