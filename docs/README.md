@@ -7,12 +7,12 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Market Event Attribution](market-event-attribution.md): metodología para reconstruir movimientos históricos del precio y evaluar eventos potencialmente relacionados.
 - [Crypto Market Event Taxonomy](crypto-market-event-taxonomy.md): categorías normalizadas para clasificar eventos sin presuponer causalidad.
 - [Market Movement Detection](movement-detection.md): criterios reproducibles para detectar y delimitar movimientos de mercado.
-- [End-to-end research pipeline](research-pipeline.md): fixtures, validación integral, detección OHLCV, captura de fuentes y evaluación de hipótesis.
+- [End-to-end research pipeline](research-pipeline.md): fixtures, validación integral, detección OHLCV, captura de fuentes y evaluación de hipótesis.\n- [Aprendizaje histórico controlado](historical-learning.md): memoria versionada de casos revisados, búsqueda explicable de precedentes y resúmenes descriptivos.
 
 ## Data contracts
 
 - [Evidence Schema](evidence-schema.md): definición documental de eventos, fuentes, evidencias y observaciones de mercado.
-- [Executable Evidence JSON Schema](../schemas/evidence.schema.json): contrato estructural versionado 1.0.0.
+- [Executable Evidence JSON Schema](../schemas/evidence.schema.json): contrato estructural versionado 1.0.0.\n- [Historical case JSON Schema](../schemas/historical-case.schema.json): contrato versionado para la memoria histórica.\n- [Historical learning tests](../tests/test_historical_learning.py): pruebas de almacenamiento, elegibilidad y recuperación de casos.
 - [Evidence schema tests](../tests/test_evidence_schema.py): pruebas automatizadas del contrato estructural.
 - [Semantic evidence validation](evidence-validation.md): integridad referencial, IDs únicos y orden temporal de ventanas.
 - [Semantic validation tests](../tests/test_evidence_semantics.py): pruebas automatizadas de las reglas semánticas.
