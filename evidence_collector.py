@@ -84,6 +84,35 @@ def _publication_timestamp(raw_value):
     return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def _publication_metadata(element):
+    """Select a valid publication field before update metadata, independent of XML order.
+
+    A valid published/pubDate/date value wins over updated. An updated timestamp is
+    used only as a clearly labeled fallback when no publication field parses to a
+    timezone-aware instant. Naive timestamps are not silently interpreted as UTC.
+    """
+    names = {"pubdate": "pubDate", "published": "published", "date": "date", "updated": "updated"}
+    candidates = {}
+    for child in list(element):
+        name = _local_name(child.tag)
+        if name in names and name not in candidates:
+            value = "".join(child.itertext()).strip()
+            if value:
+                candidates[name] = value
+    for name in ("pubdate", "published", "date", "updated"):
+        raw = candidates.get(name)
+        if raw:
+            normalized = _publication_timestamp(raw)
+            if normalized:
+                quality = "OBSERVED_PUBLICATION" if name != "updated" else "UPDATE_FALLBACK"
+                return {"raw": raw, "field": names[name], "normalized": normalized, "quality": quality}
+    for name in ("pubdate", "published", "date", "updated"):
+        raw = candidates.get(name)
+        if raw:
+            return {"raw": raw, "field": names[name], "normalized": None, "quality": "INVALID_OR_TIMEZONE_MISSING"}
+    return {"raw": None, "field": None, "normalized": None, "quality": "MISSING"}
+
+
 def parse_feed(xml_text, feed_url, publisher, source_id, evidence_id, captured_at=None):
     """Parse RSS 2.0 or Atom XML into Source/Evidence envelopes without network access."""
     _validate_url(feed_url)
@@ -113,8 +142,9 @@ def parse_feed(xml_text, feed_url, publisher, source_id, evidence_id, captured_a
         title = _child_text(entry, {"title"}) or f"Untitled feed entry {index}"
         link = _entry_link(entry, feed_url)
         original_id = _child_text(entry, {"guid", "id"})
-        published_raw = _child_text(entry, {"pubdate", "published", "updated", "date"})
-        published_at = _publication_timestamp(published_raw)
+        timestamp_metadata = _publication_metadata(entry)
+        published_raw = timestamp_metadata["raw"]
+        published_at = timestamp_metadata["normalized"]
         summary = _child_text(entry, {"description", "summary", "content", "encoded"}) or ""
         # Hash the parsed entry bytes, not a normalized summary, for stable audit comparisons.
         entry_bytes = ET.tostring(entry, encoding="utf-8")
@@ -130,7 +160,11 @@ def parse_feed(xml_text, feed_url, publisher, source_id, evidence_id, captured_a
         provenance = (
             f"feed_url={feed_url}; feed_title={feed_title or ''}; feed_publisher={publisher}; "
             f"item_publisher={item_publisher}; entry_id={original_id or ''}; "
-            f"original_published_value={published_raw or ''}; collector_version={COLLECTOR_VERSION}; "
+            f"original_published_value={published_raw or ''}; "
+            f"timestamp_field={timestamp_metadata['field'] or ''}; "
+            f"timestamp_quality={timestamp_metadata['quality']}; "
+            f"normalized_publication_timestamp={published_at or ''}; "
+            f"collector_version={COLLECTOR_VERSION}; "
             "Feed metadata is not independent verification of authorship or truth."
         )
         records.append({

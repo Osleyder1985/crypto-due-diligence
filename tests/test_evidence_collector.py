@@ -34,6 +34,45 @@ class EvidenceCollectorTests(unittest.TestCase):
         self.assertIn("feed_publisher=Google News date-scoped search", source["notes"])
         self.assertIn("item_publisher=CoinDesk", source["notes"])
 
+    def test_publication_timestamp_preferred_over_updated_regardless_of_xml_order(self):
+        for fields in (
+            '<published>2026-08-20T07:00:00-04:00</published><updated>2026-08-20T15:00:00Z</updated>',
+            '<updated>2026-08-20T15:00:00Z</updated><published>2026-08-20T07:00:00-04:00</published>',
+        ):
+            xml = f'<feed xmlns="http://www.w3.org/2005/Atom"><title>Feed</title><entry><title>BTC news</title>{fields}</entry></feed>'
+            source = parse_feed(xml, "https://example.org/feed", "Example", "src", "ev",
+                                captured_at="2026-08-20T16:00:00Z")["records"][0]["record"]
+            self.assertEqual("2026-08-20T11:00:00Z", source["published_at"])
+            self.assertIn("timestamp_field=published", source["notes"])
+            self.assertIn("timestamp_quality=OBSERVED_PUBLICATION", source["notes"])
+
+    def test_rss_pubdate_wins_over_updated_and_timezone_is_normalized(self):
+        xml = """<rss version="2.0"><channel><title>Feed</title><item>
+          <title>BTC news</title><updated>2026-08-20T15:00:00Z</updated>
+          <pubDate>Thu, 20 Aug 2026 07:00:00 -0400</pubDate>
+        </item></channel></rss>"""
+        source = parse_feed(xml, "https://example.org/feed", "Example", "src", "ev")["records"][0]["record"]
+        self.assertEqual("2026-08-20T11:00:00Z", source["published_at"])
+        self.assertIn("timestamp_field=pubDate", source["notes"])
+        self.assertIn("timestamp_quality=OBSERVED_PUBLICATION", source["notes"])
+
+    def test_updated_is_labeled_fallback_when_publication_timestamp_is_invalid(self):
+        xml = """<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>BTC news</title>
+          <published>not-a-date</published><updated>2026-08-20T15:00:00Z</updated>
+        </entry></feed>"""
+        source = parse_feed(xml, "https://example.org/feed", "Example", "src", "ev")["records"][0]["record"]
+        self.assertEqual("2026-08-20T15:00:00Z", source["published_at"])
+        self.assertIn("timestamp_field=updated", source["notes"])
+        self.assertIn("timestamp_quality=UPDATE_FALLBACK", source["notes"])
+
+    def test_invalid_or_naive_timestamp_is_not_silently_assumed_utc(self):
+        xml = """<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>BTC news</title>
+          <published>2026-08-20T07:00:00</published>
+        </entry></feed>"""
+        source = parse_feed(xml, "https://example.org/feed", "Example", "src", "ev")["records"][0]["record"]
+        self.assertIsNone(source["published_at"])
+        self.assertIn("timestamp_quality=INVALID_OR_TIMEZONE_MISSING", source["notes"])
+
     def test_returns_source_and_unverified_evidence_with_hash(self):
         result = collect_url(
             "https://example.org/source", "Synthetic Publisher", "src_test", "evd_test",
