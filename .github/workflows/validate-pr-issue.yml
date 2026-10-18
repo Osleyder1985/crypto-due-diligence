@@ -24,7 +24,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const pullRequest = context.payload.pull_request;
-            const body = (pullRequest.body || '').replace(/`{1,3}[\\s\\S]*?`{1,3}/g, ' ');
+            const body = (pullRequest.body || '').replace(/`[^`]*`/g, ' ');
 
             const pattern = /\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?|refs?)\s+#(\d+)\b/gi;
             const issueNumbers = [...body.matchAll(pattern)].map((match) => Number(match[1]));
