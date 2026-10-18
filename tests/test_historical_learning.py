@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from jsonschema import Draft202012Validator, FormatChecker
+
 from historical_learning import (
     CaseValidationError,
     find_similar_cases,
@@ -45,6 +47,15 @@ class HistoricalLearningTests(unittest.TestCase):
         case = make_case()
         self.assertEqual(validate_case(case), [])
         self.assertTrue(is_learning_eligible(case))
+
+    def test_executable_json_schema_accepts_valid_case_and_rejects_extra_fields(self):
+        schema_path = Path(__file__).resolve().parents[1] / "schemas" / "historical-case.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema, format_checker=FormatChecker())
+        self.assertEqual(list(validator.iter_errors(make_case())), [])
+        invalid = make_case(unexpected_field="must be rejected")
+        self.assertTrue(list(validator.iter_errors(invalid)))
 
     def test_unreviewed_or_insufficient_cases_are_excluded(self):
         draft = make_case(review_status="DRAFT", reviewer=None, reviewed_at=None)
