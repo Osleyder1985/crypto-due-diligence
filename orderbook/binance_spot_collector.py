@@ -10,6 +10,8 @@ from decimal import Decimal
 import json
 import logging
 from pathlib import Path
+
+from .lifecycle import CVDAccumulator, LevelLifecycleTracker
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -156,6 +158,9 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
     metrics_out = JsonlWriter(root / f"{symbol.lower()}-book-metrics.jsonl")
     ws_url = WS_BASE + f"{symbol.lower()}@depth@100ms/{symbol.lower()}@trade"
     event_count = 0
+    cvd = CVDAccumulator()
+    lifecycle = LevelLifecycleTracker()
+    lifecycle_out = JsonlWriter(root / f"{symbol.lower()}-level-lifecycle.jsonl")
 
     while max_events is None or event_count < max_events:
         try:
@@ -164,20 +169,27 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                 buffer = []
                 snapshot = await asyncio.to_thread(fetch_depth_snapshot, symbol, snapshot_limit)
                 last_update_id = snapshot["lastUpdateId"]
+                snapshot_at = utc_now()
                 bids, asks = _levels(snapshot.get("bids", [])), _levels(snapshot.get("asks", []))
+                lifecycle.seed(bids, asks, snapshot_at)
+                raw_depth.write({
+                    "schema_version": "1.0", "record_type": "snapshot", "venue": "binance_spot",
+                    "symbol": symbol, "received_at": snapshot_at,
+                    "last_update_id": last_update_id, "raw_snapshot": snapshot,
+                })
                 synchronized = False
                 async for message in socket:
                     received_at = utc_now()
                     envelope = json.loads(message)
                     stream, event = envelope.get("stream", ""), envelope.get("data", {})
                     if stream.endswith("@trade"):
+                        flow = cvd.add_trade(event.get("p", "0"), event.get("q", "0"), bool(event.get("m")))
                         raw_trades.write({
                             "schema_version": "1.0", "venue": "binance_spot", "symbol": symbol,
                             "received_at": received_at, "event_time_ms": event.get("T"),
                             "trade_id": event.get("t"), "price": event.get("p"),
                             "quantity": event.get("q"), "buyer_is_maker": event.get("m"),
-                            "aggressor_side_inferred": "SELL" if event.get("m") else "BUY",
-                            "raw_event": event,
+                            **flow, "raw_event": event,
                         })
                         event_count += 1
                         if max_events is not None and event_count >= max_events:
@@ -223,6 +235,12 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                             synchronized = False
                             break
                         apply_depth_event(bids, asks, current)
+                        for lifecycle_record in lifecycle.apply_event(current, received_at):
+                            lifecycle_out.write({
+                                "schema_version": "1.0", "venue": "binance_spot", "symbol": symbol,
+                                "first_update_id": current.get("U"), "final_update_id": current.get("u"),
+                                **lifecycle_record,
+                            })
                         last_update_id = current["u"]
                         metrics_out.write({
                             "schema_version": "1.0", "venue": "binance_spot", "symbol": symbol,
