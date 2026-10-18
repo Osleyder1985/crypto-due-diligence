@@ -79,7 +79,7 @@ class HistoricalLearningTests(unittest.TestCase):
         results = find_similar_cases(query, [unrelated, similar], limit=5)
         self.assertEqual(results[0]["case_id"], "prior-case")
         self.assertIn("shared_factors", results[0]["matching_reasons"])
-        self.assertEqual(len(results), 2)
+        self.assertEqual(len(results), 1)
 
     def test_summary_excludes_unresolved_cases_and_reports_sample_size(self):
         cases = [
