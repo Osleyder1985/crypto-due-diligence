@@ -1,4 +1,5 @@
-name: Validate Pull Request Issue Link
+name: PR Issue Link CI
+run-name: Validate Pull Request Issue Link
 
 on:
   pull_request:
@@ -24,7 +25,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const pullRequest = context.payload.pull_request;
-            const body = (pullRequest.body || '').replace(/`[^`]*`/g, ' ');
+            const body = (pullRequest.body || '').replace(/\x60[^\x60]*\x60/g, ' ');
 
             const pattern = /\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?|refs?)\s+#(\d+)\b/gi;
             const issueNumbers = [...body.matchAll(pattern)].map((match) => Number(match[1]));
