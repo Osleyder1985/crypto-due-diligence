@@ -10,6 +10,7 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [End-to-end research pipeline](research-pipeline.md): fixtures, validación integral, detección OHLCV, captura de fuentes y evaluación de hipótesis.
 - [Aprendizaje histórico controlado](historical-learning.md): memoria versionada de casos revisados, búsqueda explicable de precedentes y resúmenes descriptivos.
 - [Investigación autónoma por moneda y período](autonomous-research.md): consulta de mercado, recopilación de feeds, informe y registro de casos.
+- [Evaluación temporal de predicciones](prediction-evaluation.md): evaluación walk-forward sin fuga temporal y comparación con una línea base de momentum.
 
 ## Data contracts
 
@@ -23,6 +24,7 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Semantic validator implementation](../semantic_validation.py): validador determinista de colecciones de registros.
 - [Research pipeline entry point](../research_pipeline.py): valida registros estructuralmente y luego semánticamente.
 - [Autonomous research entry point](../autonomous_research.py): investiga un ticker en un intervalo UTC y conserva un caso preliminar.
+- [Prediction evaluation entry point](../prediction_evaluation.py): compara un clasificador experimental con momentum en una evaluación temporal.
 - [Research fixtures](../fixtures/research/): casos sintéticos completos, contradictorios y con datos insuficientes.
 
 ## Running checks
