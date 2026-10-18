@@ -134,6 +134,11 @@ def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hou
             "analysis_anchor_utc": anchor.isoformat().replace("+00:00", "Z") if anchor else None,
             "timestamp_source": "explicit_event_timestamp" if actual else "publication_timestamp_proxy" if published else "unavailable",
             "timestamp_confidence": "MEDIUM" if actual else "LOW" if published else "NONE",
+            "publication_timestamp_raw": event.get("publication_timestamp_raw"),
+            "publication_timestamp_field": event.get("publication_timestamp_field"),
+            "publication_timestamp_quality": event.get("publication_timestamp_quality", "LEGACY_OR_UNKNOWN"),
+            "normalized_publication_timestamp": event.get("normalized_publication_timestamp") or
+                (published.isoformat().replace("+00:00", "Z") if published else None),
             "asset_topic_tags": event.get("asset_topic_tags", []),
             "verification_status": event.get("verification_status", "UNVERIFIED"),
             "source_id": event.get("source_id"), "evidence_id": event.get("evidence_id"),
