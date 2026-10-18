@@ -37,6 +37,18 @@ class HypothesisEvaluationTests(unittest.TestCase):
             "contradicting_evidence_ids": ["evd_c1"]}], records)
         self.assertEqual("INCONCLUSIVE", result["results"][0]["outcome"])
 
+    def test_alternatives_and_market_context_are_preserved_for_review(self):
+        result = evaluate_hypotheses(
+            [{"hypothesis_id": "h1", "supporting_evidence_ids": ["evd_s1", "evd_s2"],
+              "alternative_explanations": ["market-wide rally", "thin liquidity"]}],
+            [evidence("evd_s1", "SUPPORTS"), evidence("evd_s2", "SUPPORTS")],
+            market_context={"benchmark_relative_return_pct": 1.2, "potential_confounds": ["market-wide rally"]},
+        )
+        item = result["results"][0]
+        self.assertEqual(["market-wide rally", "thin liquidity"], item["alternative_explanations"])
+        self.assertTrue(item["market_context_review_required"])
+        self.assertEqual(1.2, item["market_context"]["benchmark_relative_return_pct"])
+
     def test_missing_evidence_reference_is_reported(self):
         result = evaluate_hypotheses([{"hypothesis_id": "h1", "supporting_evidence_ids": ["evd_missing"]}], [])
         self.assertEqual(["evd_missing"], result["results"][0]["missing_evidence_ids"])
