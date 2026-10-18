@@ -12,6 +12,7 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Investigación autónoma por moneda y período](autonomous-research.md): consulta de mercado, recopilación de feeds, informe y registro de casos.
 - [Evaluación temporal de predicciones](prediction-evaluation.md): evaluación walk-forward sin fuga temporal y comparación con una línea base de momentum.
 - [Memoria persistente de resultados](prediction-memory.md): conserva retornos observados y reutiliza ejemplos maduros de investigaciones anteriores.
+- [Validación rolling de memoria](rolling-validation.md): compara la memoria persistente, el modelo sin memoria y momentum en predicciones emparejadas fuera de muestra.
 
 ## Data contracts
 
@@ -27,15 +28,17 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 - [Autonomous research entry point](../autonomous_research.py): investiga un ticker en un intervalo UTC y conserva un caso preliminar.
 - [Prediction evaluation entry point](../prediction_evaluation.py): compara un clasificador experimental con momentum en una evaluación temporal.
 - [Persistent prediction memory](../prediction_memory.py): almacena ejemplos de retorno futuro con filtros temporales e idempotencia.
+- [Rolling memory validation runner](../rolling_validation.py): mide el delta de métricas de memoria habilitada frente a memoria deshabilitada.
+- [Rolling validation tests](../tests/test_rolling_validation.py): prueba el emparejamiento temporal y los casos de datos insuficientes.
 - [Research fixtures](../fixtures/research/): casos sintéticos completos, contradictorios y con datos insuficientes.
 
 ## Running checks
 
-\`\`\`sh
+```sh
 python -m pip install "jsonschema>=4.18,<5"
 python research_pipeline.py validate-fixtures
 python -m unittest discover -s tests -v
-\`\`\`
+```
 
 ## Governance
 
