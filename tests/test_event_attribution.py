@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from event_attribution import analyze_event_reactions, parse_utc
+from event_attribution import analyze_event_reactions, deduplicate_events, parse_utc
 
 
 def candles(count=40):
@@ -41,6 +41,52 @@ class EventAttributionTests(unittest.TestCase):
     def test_invalid_windows_rejected(self):
         with self.assertRaises(ValueError):
             analyze_event_reactions([], candles(), windows_hours=(0,))
+
+    def test_exact_syndicated_headlines_are_grouped_and_provenance_preserved(self):
+        events = [
+            {"title": "Bitcoin rises after ETF inflows", "publisher": "A", "url": "https://a.test/story",
+             "published_at": "2026-01-01T10:00:00Z"},
+            {"title": "BITCOIN rises after ETF inflows!", "publisher": "B", "url": "https://b.test/story",
+             "published_at": "2026-01-01T12:00:00Z"},
+        ]
+        grouped = deduplicate_events(events)
+        self.assertEqual(1, len(grouped))
+        self.assertEqual(2, grouped[0]["duplicate_count"])
+        self.assertEqual({"A", "B"}, {x["publisher"] for x in grouped[0]["duplicate_sources"]})
+
+    def test_near_duplicates_group_but_distinct_story_does_not(self):
+        events = [
+            {"title": "Bitcoin price rises sharply after large exchange fund inflows", "published_at": "2026-01-01T10:00:00Z"},
+            {"title": "Bitcoin price rises sharply after large exchange fund inflows today", "published_at": "2026-01-01T11:00:00Z"},
+            {"title": "Ethereum developers announce a major network upgrade", "published_at": "2026-01-01T11:00:00Z"},
+        ]
+        grouped = deduplicate_events(events)
+        self.assertEqual(2, len(grouped))
+        self.assertEqual(2, next(x for x in grouped if x["duplicate_count"] == 2)["duplicate_count"])
+
+    def test_far_apart_republication_is_not_merged(self):
+        events = [
+            {"title": "Bitcoin rises after ETF inflows", "published_at": "2026-01-01T10:00:00Z"},
+            {"title": "Bitcoin rises after ETF inflows", "published_at": "2026-01-10T10:00:00Z"},
+        ]
+        self.assertEqual(2, len(deduplicate_events(events)))
+
+    def test_weak_and_unknown_asset_matches_are_flagged(self):
+        weak = analyze_event_reactions([{"title": "Macro update", "published_at": "2026-01-01T10:00:00Z",
+                                         "match_quality": "WEAK"}], candles(), windows_hours=(1,))
+        self.assertIn("only outside the headline", weak["timeline"][0]["weak_match_warning"])
+        unknown = analyze_event_reactions([{"title": "Headline", "published_at": "2026-01-01T10:00:00Z"}],
+                                          candles(), windows_hours=(1,))
+        self.assertEqual("UNKNOWN", unknown["timeline"][0]["match_quality"])
+        self.assertIsNotNone(unknown["timeline"][0]["weak_match_warning"])
+
+    def test_reaction_threshold_is_not_called_a_hypothesis(self):
+        result = analyze_event_reactions([{"title": "Headline", "published_at": "2026-01-01T10:00:00Z",
+                                           "match_quality": "STRONG"}], candles(), windows_hours=(1,))
+        item = result["timeline"][0]
+        self.assertEqual("observed_reaction", item["assessment"])
+        self.assertIn("not evidence of causation", item["assessment_note"])
+        self.assertTrue(item["alternative_explanations"])
 
 
 if __name__ == "__main__":
