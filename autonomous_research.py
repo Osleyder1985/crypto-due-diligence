@@ -197,7 +197,7 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       "generated_at":datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
       "market_data":{k:v for k,v in market.items() if k!="candles"},"market_analysis":stats,"contextual_evidence":context,
       "historical_summary":summarize_outcomes(existing),"similar_cases":precedents,"historical_case":case,
-      "prediction_signal":prediction_signal,"prediction_evaluation":prediction_evaluation,
+      "prediction_signal":prediction_signal,"prediction_evaluation":prediction_evaluation,"prediction_memory":memory_update,
       "limitations":["RSS coverage is incomplete; only literal ticker matches are collected.",
        "Collected evidence remains unverified; timing does not establish causality.",
        "Draft cases are excluded from learning summaries until reviewed and verified.",
@@ -214,7 +214,8 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       f"- Direction: {prediction_signal.get('signal','unavailable')}",
       f"- As of: {prediction_signal.get('as_of','unavailable')}",
       f"- Neighbor votes: {prediction_signal.get('neighbor_votes','unavailable')}",
-      f"- Historical evaluation status: {prediction_evaluation.get('status','UNKNOWN')}"]
+      f"- Historical evaluation status: {prediction_evaluation.get('status','UNKNOWN')}",
+      f"- Persistent memory: {memory_update.get('status')} ({memory_update.get('total_examples',0)} total examples; {memory_update.get('new_examples_added',0)} added)"]
     if prediction_signal.get("reason"): lines.append(f"- Reason: {prediction_signal['reason']}")
     if prediction_evaluation.get("metrics"):
         lines.append(f"- Walk-forward samples: {prediction_evaluation['prediction_count']}")
@@ -242,14 +243,15 @@ def main(argv=None):
     p.add_argument("symbol"); p.add_argument("start_date"); p.add_argument("end_date")
     p.add_argument("--interval",choices=sorted(INTERVALS),default="1h")
     p.add_argument("--output-dir",default="research_runs"); p.add_argument("--cases-path",default="data/historical_cases.json")
+    p.add_argument("--prediction-memory-path",default="data/prediction_memory.json")
     a=p.parse_args(argv)
     try:
-        result=run(a.symbol,utc_date(a.start_date),utc_date(a.end_date,True),a.interval,a.output_dir,a.cases_path)
+        result=run(a.symbol,utc_date(a.start_date),utc_date(a.end_date,True),a.interval,a.output_dir,a.cases_path,a.prediction_memory_path)
     except (ResearchError,CollectionError,ValueError,OSError) as exc:
         print(json.dumps({"ok":False,"error":str(exc)},indent=2),file=sys.stderr); return 1
     print(json.dumps({"ok":True,"symbol":result["asset_symbol"],"return_pct":result["market_analysis"]["return_pct"],
       "direction":result["market_analysis"]["direction"],"matching_evidence":len(result["contextual_evidence"]["entries"]),
-      "report":result["output_markdown"],"case_id":result["historical_case"]["case_id"],
+      "report":result["output_markdown"],"case_id":result["historical_case"]["case_id"],"prediction_signal":result["prediction_signal"],"prediction_memory":result["prediction_memory"],
       "warning":"Experimental direction signal only; no causal attribution or guaranteed forecast."},indent=2))
     return 0
 
