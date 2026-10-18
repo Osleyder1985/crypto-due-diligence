@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   validate-issue-link:
-    name: validate-issue-link
+    name: Validate Pull Request Issue Link
     runs-on: ubuntu-latest
     steps:
       - name: Validate Issue references
