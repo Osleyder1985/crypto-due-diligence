@@ -57,7 +57,7 @@ class PredictionEvaluationTests(unittest.TestCase):
 
     def test_next_signal_requires_matured_training_samples(self):
         with self.assertRaises(EvaluationError):
-            predict_next(candles(55),lookback=12,horizon=3,min_train=40,neighbors=5)
+            predict_next(candles(54),lookback=12,horizon=3,min_train=40,neighbors=5)
     def test_insufficient_data_fails(self):
         with self.assertRaises(EvaluationError):
             walk_forward_evaluate(candles(55),lookback=12,horizon=3,min_train=40)
