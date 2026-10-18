@@ -2,7 +2,7 @@ import math
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from prediction_evaluation import EvaluationError, walk_forward_evaluate
+from prediction_evaluation import EvaluationError, predict_next, walk_forward_evaluate
 
 
 def candles(count=260):
@@ -47,6 +47,17 @@ class PredictionEvaluationTests(unittest.TestCase):
         self.assertEqual(row_a["knn_prediction"],row_b["knn_prediction"])
         self.assertEqual(row_a["momentum_prediction"],row_b["momentum_prediction"])
 
+    def test_next_signal_uses_only_matured_labels(self):
+        rows=candles(260)
+        result=predict_next(rows,lookback=12,horizon=3,min_train=40,neighbors=5)
+        self.assertEqual(result["status"],"EXPERIMENTAL_SIGNAL")
+        self.assertLessEqual(result["latest_training_label_timestamp"],result["as_of"])
+        self.assertIn(result["signal"],("UP","DOWN","INCONCLUSIVE"))
+        self.assertEqual(sum(result["neighbor_votes"].values()),5)
+
+    def test_next_signal_requires_matured_training_samples(self):
+        with self.assertRaises(EvaluationError):
+            predict_next(candles(54),lookback=12,horizon=3,min_train=40,neighbors=5)
     def test_insufficient_data_fails(self):
         with self.assertRaises(EvaluationError):
             walk_forward_evaluate(candles(55),lookback=12,horizon=3,min_train=40)

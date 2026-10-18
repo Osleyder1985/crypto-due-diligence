@@ -60,6 +60,8 @@ class AutonomousResearchTests(unittest.TestCase):
             self.assertTrue(Path(report["output_json"]).exists())
             self.assertEqual(report["historical_case"]["review_status"],"DRAFT")
             self.assertEqual(report["historical_case"]["verification_status"],"UNVERIFIED")
+            self.assertEqual(report["prediction_signal"]["status"],"INSUFFICIENT_DATA")
+            self.assertEqual(report["prediction_evaluation"]["status"],"INSUFFICIENT_DATA")
             store=json.loads((Path(directory)/"cases.json").read_text())
             self.assertEqual(len(store["cases"]),1)
             self.assertIn("does not prove causes",report["markdown"])
