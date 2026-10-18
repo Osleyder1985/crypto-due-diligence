@@ -11,9 +11,12 @@ Documentación metodológica y contratos de datos de CryptoDueDiligence.
 ## Data contracts
 
 - [Evidence Schema](evidence-schema.md): definición documental de eventos, fuentes, evidencias y observaciones de mercado.
-- [Executable Evidence JSON Schema](../schemas/evidence.schema.json): contrato estructural versionado `1.0.0`.
-- [Evidence schema tests](../tests/test_evidence_schema.py): pruebas automatizadas del contrato.
+- [Executable Evidence JSON Schema](../schemas/evidence.schema.json): contrato estructural versionado 1.0.0.
+- [Evidence schema tests](../tests/test_evidence_schema.py): pruebas automatizadas del contrato estructural.
+- [Semantic evidence validation](evidence-validation.md): integridad referencial, IDs únicos y orden temporal de ventanas.
+- [Semantic validation tests](../tests/test_evidence_semantics.py): pruebas automatizadas de las reglas semánticas.
+- [Semantic validator implementation](../semantic_validation.py): validador determinista de colecciones de registros.
 
 ## Governance
 
-La documentación y el código se modifican mediante Issues y Pull Requests. No se realizan cambios directamente en `main`. La validación estructural no demuestra autenticidad, veracidad ni causalidad.
+La documentación y el código se modifican mediante Issues y Pull Requests. No se realizan cambios directamente en main. La validación estructural o semántica no demuestra autenticidad, veracidad ni causalidad.
