@@ -121,7 +121,22 @@ class EventAttributionTests(unittest.TestCase):
         item = result["timeline"][0]
         self.assertEqual("observed_reaction", item["assessment"])
         self.assertIn("not evidence of causation", item["assessment_note"])
+        self.assertEqual("NOT_ESTABLISHED", item["causal_attribution_status"])
+        self.assertGreaterEqual(len(item["causal_evidence_requirements"]), 5)
         self.assertTrue(item["alternative_explanations"])
+
+    def test_explicit_event_timestamp_does_not_auto_establish_causality(self):
+        result = analyze_event_reactions([{
+            "title": "Verified event headline",
+            "published_at": "2026-01-01T10:00:00Z",
+            "event_timestamp": "2026-01-01T10:00:00Z",
+            "verification_status": "VERIFIED",
+            "match_quality": "STRONG",
+        }], candles(), windows_hours=(1,))
+        item = result["timeline"][0]
+        self.assertEqual("explicit_event_timestamp", item["timestamp_source"])
+        self.assertEqual("NOT_ESTABLISHED", item["causal_attribution_status"])
+        self.assertIn("independently", item["causal_attribution_reason"])
 
 
 if __name__ == "__main__":
