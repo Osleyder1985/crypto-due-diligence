@@ -26,6 +26,7 @@ on:
       - "docs/research-pipeline.md"
       - "docs/README.md"
       - ".github/workflows/validate-evidence-schema.yml"
+      - ".github/workflows/run-historical-research.yml"
   push:
     branches:
       - main
@@ -53,6 +54,7 @@ on:
       - "docs/research-pipeline.md"
       - "docs/README.md"
       - ".github/workflows/validate-evidence-schema.yml"
+      - ".github/workflows/run-historical-research.yml"
 
 permissions:
   contents: read
