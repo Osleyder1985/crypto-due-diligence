@@ -294,7 +294,7 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       f"Raw news leads: {event_study.get('raw_event_count', len(context['entries']))}; after heuristic deduplication: {event_study.get('deduplicated_event_count', len(event_study['timeline']))}."]
     if event_study["timeline"]:
         for item in event_study["timeline"]:
-            lines.append(f"- {item.get('title') or '(untitled)'} — {item.get('publisher') or 'unknown'} — {item.get('published_at_utc') or 'timestamp unavailable'} — {item['timestamp_source']} ({item['timestamp_confidence']}) — source timestamp: {item.get('publication_timestamp_quality', 'LEGACY_OR_UNKNOWN')} [{item.get('publication_timestamp_field') or 'field unknown'}] — {item.get('assessment', 'inconclusive')} — grouped sources: {item.get('duplicate_count', 1)}")
+            lines.append(f"- {item.get('title') or '(untitled)'} — {item.get('publisher') or 'unknown'} — {item.get('published_at_utc') or 'timestamp unavailable'} — {item['timestamp_source']} ({item['timestamp_confidence']}) — source timestamp: {item.get('publication_timestamp_quality', 'LEGACY_OR_UNKNOWN')} [{item.get('publication_timestamp_field') or 'field unknown'}] — overlap cluster: {item.get('overlap_cluster_id') or 'none'} (size {item.get('overlap_cluster_size', 0)}) — {item.get('assessment', 'inconclusive')} — grouped sources: {item.get('duplicate_count', 1)}")
             if item.get("weak_match_warning"): lines.append(f"  - Match warning: {item['weak_match_warning']}")
             if item.get("shared_reaction_window_warning"):
                 counts = ", ".join(f"{window}: {count} other event(s)" for window, count in item["overlapping_event_count_by_window"].items() if count)
