@@ -1,11 +1,13 @@
-name: Validate evidence JSON Schema
+name: Validate evidence JSON Schema and semantics
 
 on:
   pull_request:
     paths:
       - "schemas/**"
       - "tests/**"
+      - "semantic_validation.py"
       - "docs/evidence-schema.md"
+      - "docs/evidence-validation.md"
       - "docs/README.md"
       - ".github/workflows/validate-evidence-schema.yml"
   push:
@@ -14,7 +16,9 @@ on:
     paths:
       - "schemas/**"
       - "tests/**"
+      - "semantic_validation.py"
       - "docs/evidence-schema.md"
+      - "docs/evidence-validation.md"
       - "docs/README.md"
       - ".github/workflows/validate-evidence-schema.yml"
 
@@ -33,5 +37,5 @@ jobs:
           python-version: "3.12"
       - name: Install test dependency
         run: python -m pip install "jsonschema>=4.18,<5"
-      - name: Run evidence schema contract tests
+      - name: Run evidence schema and semantic tests
         run: python -m unittest discover -s tests -v
