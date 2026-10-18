@@ -3,7 +3,7 @@ import unittest
 from email.message import Message
 from unittest.mock import patch
 
-from evidence_collector import CollectionError, collect_url
+from evidence_collector import CollectionError, collect_url, parse_feed
 
 
 class FakeResponse:
@@ -20,6 +20,20 @@ class FakeResponse:
 
 
 class EvidenceCollectorTests(unittest.TestCase):
+    def test_feed_item_publisher_overrides_aggregator_name(self):
+        xml = """<?xml version="1.0"?>
+        <rss version="2.0"><channel><title>Aggregator</title><item>
+          <title>Bitcoin market update</title><link>https://example.org/story</link>
+          <pubDate>Thu, 20 Aug 2026 07:00:00 GMT</pubDate>
+          <source url="https://coindesk.com">CoinDesk</source>
+        </item></channel></rss>"""
+        result = parse_feed(xml, "https://news.example.org/rss", "Google News date-scoped search",
+                            "src_test", "ev_test", captured_at="2026-08-20T08:00:00Z")
+        source = result["records"][0]["record"]
+        self.assertEqual("CoinDesk", source["publisher"])
+        self.assertIn("feed_publisher=Google News date-scoped search", source["notes"])
+        self.assertIn("item_publisher=CoinDesk", source["notes"])
+
     def test_returns_source_and_unverified_evidence_with_hash(self):
         result = collect_url(
             "https://example.org/source", "Synthetic Publisher", "src_test", "evd_test",
