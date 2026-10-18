@@ -1,5 +1,7 @@
 """Event-study helpers. Temporal coincidence is not causal proof."""
 from datetime import datetime, timedelta, timezone
+import re
+import unicodedata
 
 
 def parse_utc(value):
@@ -58,6 +60,50 @@ def _reaction(rows, anchor, hours, benchmark):
     return result
 
 
+def _normalized_title(title):
+    text = unicodedata.normalize("NFKC", str(title or "")).casefold()
+    return " ".join(re.findall(r"[\\w]+", text, flags=re.UNICODE))
+
+
+def deduplicate_events(events, similarity_threshold=0.82, max_age_hours=72):
+    """Group syndicated headlines without discarding source provenance."""
+    if not 0 < similarity_threshold <= 1 or max_age_hours < 0:
+        raise ValueError("invalid deduplication threshold or age window")
+    groups = []
+    ordered = sorted((dict(e) for e in (events or [])),
+        key=lambda e: (parse_utc(e.get("published_at")) or datetime.max.replace(tzinfo=timezone.utc),
+                       _normalized_title(e.get("title")), str(e.get("url") or "")))
+    for event in ordered:
+        title, published = _normalized_title(event.get("title")), parse_utc(event.get("published_at"))
+        match = None
+        if title:
+            for group in groups:
+                prior = group["title"]
+                times = [parse_utc(x.get("published_at")) for x in group["sources"]]
+                known = [t for t in times if t]
+                within = not published or not known or min(abs((published-t).total_seconds()) for t in known) <= max_age_hours*3600
+                a, b = set(title.split()), set(prior.split())
+                overlap = len(a & b) / len(a | b) if a and b else 0
+                near = len(a) >= 6 and len(b) >= 6 and overlap >= similarity_threshold
+                if within and (title == prior or near):
+                    match = group
+                    break
+        if match is None:
+            groups.append({"title": title, "representative": event, "sources": [event]})
+        else:
+            match["sources"].append(event)
+    result = []
+    for group in groups:
+        item = dict(group["representative"])
+        item["duplicate_count"] = len(group["sources"])
+        item["deduplication"] = "DUPLICATE_GROUP" if len(group["sources"]) > 1 else "UNIQUE_HEADLINE"
+        item["duplicate_sources"] = [{"title": x.get("title"), "publisher": x.get("publisher"),
+            "url": x.get("url"), "published_at": x.get("published_at"),
+            "source_id": x.get("source_id"), "evidence_id": x.get("evidence_id")} for x in group["sources"]]
+        result.append(item)
+    return result
+
+
 def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hours=(1, 6, 24)):
     """Measure predeclared post-event windows, preserving timestamp uncertainty."""
     windows = tuple(windows_hours)
@@ -65,15 +111,24 @@ def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hou
         raise ValueError("windows_hours must contain positive integers")
     market = _candles(candles)
     benchmark = {x["timestamp"]: x["close"] for x in _candles(benchmark_candles)}
+    deduplicated = deduplicate_events(events)
     timeline = []
-    for event in events or []:
+    for event in deduplicated:
         published = parse_utc(event.get("published_at"))
         actual = parse_utc(event.get("event_timestamp"))
         anchor = actual or published
         reactions = ({str(n) + "h": _reaction(market, anchor, n, benchmark) for n in windows}
                      if anchor else {str(n) + "h": {"status": "UNAVAILABLE_TIMESTAMP"} for n in windows})
+        match_quality = event.get("match_quality", "UNKNOWN")
+        has_observed_reaction = any(x.get("status") == "COMPUTED" and abs(x.get("return_pct", 0)) >= 2 for x in reactions.values())
         timeline.append({
             "title": event.get("title"), "publisher": event.get("publisher"), "url": event.get("url"),
+            "match_quality": match_quality,
+            "weak_match_warning": ("Ticker appears only outside the headline; verify asset relevance." if match_quality == "WEAK" else
+                                   "Asset-match quality was not supplied; verify that the story concerns this asset." if match_quality == "UNKNOWN" else None),
+            "duplicate_count": event.get("duplicate_count", 1),
+            "deduplication": event.get("deduplication", "UNIQUE_HEADLINE"),
+            "duplicate_sources": event.get("duplicate_sources", []),
             "published_at_utc": published.isoformat().replace("+00:00", "Z") if published else None,
             "event_timestamp_utc": actual.isoformat().replace("+00:00", "Z") if actual else None,
             "analysis_anchor_utc": anchor.isoformat().replace("+00:00", "Z") if anchor else None,
@@ -83,16 +138,25 @@ def analyze_event_reactions(events, candles, benchmark_candles=None, windows_hou
             "verification_status": event.get("verification_status", "UNVERIFIED"),
             "source_id": event.get("source_id"), "evidence_id": event.get("evidence_id"),
             "reactions": reactions,
-            "assessment": "plausible_hypothesis" if any(x.get("status") == "COMPUTED" and abs(x.get("return_pct", 0)) >= 2 for x in reactions.values()) else "inconclusive",
-            "assessment_note": "A price reaction after publication does not prove that the event caused it."
+            "assessment": "observed_reaction" if has_observed_reaction else "inconclusive",
+            "assessment_note": ("A descriptive return threshold was crossed; this is not evidence of causation." if has_observed_reaction else
+                                "No reaction crossed the descriptive threshold, or available data were insufficient."),
+            "alternative_explanations": [
+                "Broad-market or BTC movement during the same window",
+                "Other contemporaneous news, macroeconomic data, or policy announcements",
+                "Liquidity, derivatives positioning, liquidations, or technical market structure",
+                "The event may have been anticipated before publication, or the timestamp may be a poor proxy",
+                "Coincidence, noisy ticker matching, or incomplete news coverage"]
         })
     timeline.sort(key=lambda x: x["analysis_anchor_utc"] or "9999")
-    return {"methodology_version": "1.0.0", "timezone": "UTC",
+    return {"methodology_version": "1.1.0", "timezone": "UTC",
             "status": "COMPLETED" if market else "INSUFFICIENT_MARKET_DATA",
-            "windows_hours": list(windows), "timeline": timeline,
+            "windows_hours": list(windows), "raw_event_count": len(events or []),
+            "deduplicated_event_count": len(timeline), "timeline": timeline,
             "methodology_notes": [
                 "Publication timestamp is a proxy unless an event timestamp is explicitly provided.",
                 "Window starts at the first candle at or after the timestamp and ends at the first candle at or after the horizon.",
                 "Volume comparison uses up to 24 preceding candles.",
                 "No confounder controls are applied; reaction metrics are descriptive, not causal attribution.",
+                "Alternative explanations are prompts for review, not verified findings.",
                 "Never use information published after a prediction cutoff as a prediction feature."]}
