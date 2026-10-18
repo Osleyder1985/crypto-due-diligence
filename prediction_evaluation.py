@@ -155,60 +155,54 @@ def walk_forward_evaluate(candles: list[dict[str, Any]], *, lookback: int = 24,
         "The nearest-neighbor model is experimental; compare against simple baselines and test multiple unseen periods."]}
 
 def predict_next(candles: list[dict[str, Any]], *, lookback: int = 24,
-                 horizon: int = 6, min_train: int = 100,
-                 neighbors: int = 15) -> dict[str, Any]:
-    """Estimate direction over the next horizon using only labels mature as of the last candle.
-
-    The vote fraction is a neighbor-vote share, not a calibrated probability.
-    """
+                 horizon: int = 6, min_train: int = 100, neighbors: int = 15,
+                 memory_examples: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Estimate direction using labels mature by the as-of timestamp, including prior runs."""
     if lookback < 6 or horizon < 1 or min_train < 20 or neighbors < 1:
         raise EvaluationError("lookback must be >=6, horizon >=1, min_train >=20, neighbors >=1")
-    ordered = sorted(candles, key=lambda c: c["timestamp"])
+    ordered=sorted(candles,key=lambda c:c["timestamp"])
     if len({c["timestamp"] for c in ordered}) != len(ordered):
         raise EvaluationError("duplicate candle timestamps; clean data before prediction")
-    closes = [float(c["close"]) for c in ordered]
-    if any(not math.isfinite(x) or x <= 0 for x in closes):
+    closes=[float(c["close"]) for c in ordered]
+    if any(not math.isfinite(x) or x<=0 for x in closes):
         raise EvaluationError("all close prices must be finite and positive")
-    anchor = len(ordered) - 1
-    query = _features(ordered, anchor, lookback)
-    if query is None:
-        raise EvaluationError("not enough candles to calculate current features")
-    train_indices = [j for j in range(lookback, anchor - horizon + 1)
-                     if _features(ordered, j, lookback) is not None]
-    if len(train_indices) < min_train:
-        raise EvaluationError(
-            f"insufficient matured training samples: need {min_train}, got {len(train_indices)}"
-        )
-    train_features = [_features(ordered, j, lookback) for j in train_indices]
-    standardized, standardized_query = _standardize(train_features, query)
-    distances = []
-    for row_index, train_index in enumerate(train_indices):
-        distance = math.sqrt(sum((a-b)**2 for a,b in zip(standardized[row_index], standardized_query)))
-        target_return = (closes[train_index+horizon] / closes[train_index] - 1.0) * 100.0
-        distances.append((distance, train_index, _direction(target_return), target_return))
-    nearest = sorted(distances, key=lambda row: (row[0], row[1]))[:min(neighbors, len(distances))]
-    ups = sum(row[2] == "UP" for row in nearest)
-    downs = sum(row[2] == "DOWN" for row in nearest)
-    flats = sum(row[2] == "FLAT" for row in nearest)
-    signal = "UP" if ups > downs else "DOWN" if downs > ups else "INCONCLUSIVE"
-    return {
-        "status": "EXPERIMENTAL_SIGNAL",
-        "as_of": ordered[anchor]["timestamp"],
-        "target_horizon_candles": horizon,
-        "lookback_candles": lookback,
-        "signal": signal,
-        "neighbor_count": len(nearest),
-        "neighbor_votes": {"UP": ups, "DOWN": downs, "FLAT": flats},
-        "neighbor_vote_share": max(ups, downs) / len(nearest),
-        "matured_training_sample_count": len(train_indices),
-        "latest_training_anchor": ordered[train_indices[-1]]["timestamp"],
-        "latest_training_label_timestamp": ordered[train_indices[-1]+horizon]["timestamp"],
-        "limitations": [
-            "Neighbor vote share is not a calibrated probability or a guarantee.",
-            "This experimental signal uses price/volume patterns, not a verified causal explanation.",
-            "The current candle must be complete; live/incomplete candles can change features."
-        ]
-    }
+    anchor=len(ordered)-1
+    query=_features(ordered,anchor,lookback)
+    if query is None: raise EvaluationError("not enough candles to calculate current features")
+    as_of=ordered[anchor]["timestamp"]
+    train_rows=[]
+    for j in range(lookback,anchor-horizon+1):
+        feature=_features(ordered,j,lookback)
+        if feature is None: continue
+        forward_return=(closes[j+horizon]/closes[j]-1.0)*100.0
+        train_rows.append({"features":feature,"anchor":ordered[j]["timestamp"],
+          "target":ordered[j+horizon]["timestamp"],"direction":_direction(forward_return),"return":forward_return})
+    memory_examples=memory_examples or []
+    for row in memory_examples:
+        if row.get("anchor_timestamp","") < ordered[0]["timestamp"] and row.get("target_timestamp","") <= as_of:
+            train_rows.append({"features":row["features"],"anchor":row["anchor_timestamp"],
+              "target":row["target_timestamp"],"direction":row["outcome_direction"],"return":row["forward_return_pct"]})
+    if len(train_rows)<min_train:
+        raise EvaluationError(f"insufficient matured training samples: need {min_train}, got {len(train_rows)}")
+    standardized,standardized_query=_standardize([row["features"] for row in train_rows],query)
+    distances=[]
+    for row_index,row in enumerate(train_rows):
+        distance=math.sqrt(sum((a-b)**2 for a,b in zip(standardized[row_index],standardized_query)))
+        distances.append((distance,row["anchor"],row["direction"],row["return"],row["target"]))
+    nearest=sorted(distances,key=lambda row:(row[0],row[1]))[:min(neighbors,len(distances))]
+    ups=sum(row[2]=="UP" for row in nearest); downs=sum(row[2]=="DOWN" for row in nearest); flats=sum(row[2]=="FLAT" for row in nearest)
+    signal="UP" if ups>downs else "DOWN" if downs>ups else "INCONCLUSIVE"
+    latest_anchor=max(row["anchor"] for row in train_rows)
+    latest_label=max(row["target"] for row in train_rows)
+    if latest_label>as_of: raise EvaluationError("internal leakage guard: training label extends beyond as-of time")
+    return {"status":"EXPERIMENTAL_SIGNAL","as_of":as_of,"target_horizon_candles":horizon,
+      "lookback_candles":lookback,"signal":signal,"neighbor_count":len(nearest),
+      "neighbor_votes":{"UP":ups,"DOWN":downs,"FLAT":flats},"neighbor_vote_share":max(ups,downs)/len(nearest),
+      "matured_training_sample_count":len(train_rows),"prior_memory_example_count":len(memory_examples),
+      "latest_training_anchor":latest_anchor,"latest_training_label_timestamp":latest_label,
+      "limitations":["Neighbor vote share is not a calibrated probability or a guarantee.",
+        "This experimental signal uses price/volume patterns, not a verified causal explanation.",
+        "The current candle must be complete; live/incomplete candles can change features."]}
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
