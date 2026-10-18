@@ -14,8 +14,6 @@ on:
       - "historical_learning.py"
       - "autonomous_research.py"
       - "docs/autonomous-research.md"
-      - "autonomous_research.py"
-      - "docs/autonomous-research.md"
       - "docs/historical-learning.md"
       - "docs/evidence-schema.md"
       - "docs/evidence-validation.md"
