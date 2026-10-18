@@ -1,0 +1,64 @@
+name: Validate Pull Request Issue Link
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  issues: read
+  pull-requests: read
+
+jobs:
+  validate-issue-link:
+    name: Validate Pull Request Issue Link
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Issue references
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pullRequest = context.payload.pull_request;
+            const body = (pullRequest.body || '').replace(/\x60[^\x60]*\x60/g, ' ');
+
+            const pattern = /\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?|refs?)\s+#(\d+)\b/gi;
+            const issueNumbers = [...body.matchAll(pattern)].map((match) => Number(match[1]));
+            const uniqueIssueNumbers = [...new Set(issueNumbers)];
+
+            if (uniqueIssueNumbers.length === 0) {
+              core.setFailed(
+                'Este Pull Request debe referenciar al menos un Issue con una expresión como "Closes #123", "Fixes #123" o "Refs #123".'
+              );
+              return;
+            }
+
+            for (const issueNumber of uniqueIssueNumbers) {
+              try {
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+
+                if (issue.pull_request) {
+                  core.setFailed(
+                    `#${issueNumber} es otro Pull Request, no un Issue. Referencia un Issue válido del repositorio.`
+                  );
+                  return;
+                }
+              } catch (error) {
+                core.setFailed(
+                  `No se pudo validar #${issueNumber} en este repositorio. Comprueba que el Issue existe y que el número es correcto. Detalle: ${error.message}`
+                );
+                return;
+              }
+            }
+
+            core.info(
+              `Referencias válidas a Issue: ${uniqueIssueNumbers.map((number) => `#${number}`).join(', ')}`
+            );
