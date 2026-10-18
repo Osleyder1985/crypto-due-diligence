@@ -26,12 +26,13 @@ Intervalos admitidos: 1m, 5m, 15m, 30m, 1h, 4h y 1d. El informe Markdown y el re
 - Errores de feeds, enlaces, fechas y estado de verificación de las evidencias.
 - Casos históricos similares y resúmenes de casos revisados elegibles.
 - Una señal direccional experimental para el horizonte de seis velas y métricas de evaluación walk-forward frente a una línea base de momentum, si el periodo contiene suficientes velas.
+- Memoria persistente de retornos observados para que ejecuciones posteriores reutilicen ejemplos maduros del mismo activo e intervalo.
 
 ## Límites importantes
 
 La cobertura RSS y de Google News es incompleta; la búsqueda actual detecta menciones literales del ticker, no una búsqueda semántica de todo Internet ni todos los alias de un activo. Los símbolos cortos pueden producir falsos positivos; las noticias deben revisarse y contrastarse con fuentes primarias. El proveedor de precios es Binance spot y el par por defecto es TICKERUSDT; no se cambia de proveedor silenciosamente. El endpoint público puede limitar peticiones o no ofrecer el activo. Las entradas de feeds se marcan como no verificadas: coincidencia temporal o textual no demuestra causalidad.
 
-Cada ejecución se guarda inicialmente como caso DRAFT, UNVERIFIED, con resultado UNKNOWN. Esos casos no participan en resúmenes de aprendizaje causal hasta que un analista revise fuentes y registre un resultado verificado. El informe ahora incluye una señal direccional experimental basada en patrones históricos de precio/volumen y evaluación walk-forward, si hay datos suficientes. La proporción de votos de vecinos no es una probabilidad calibrada ni una garantía. No usar fixtures sintéticas como historia real de mercado.
+Cada ejecución se guarda inicialmente como caso DRAFT, UNVERIFIED, con resultado UNKNOWN. Por separado, los retornos de mercado ya observados se guardan en data/prediction_memory.json para aprendizaje direccional entre ejecuciones; no se usan etiquetas causales sin verificar. Esos casos no participan en resúmenes de aprendizaje causal hasta que un analista revise fuentes y registre un resultado verificado. El informe ahora incluye una señal direccional experimental basada en patrones históricos de precio/volumen y evaluación walk-forward, si hay datos suficientes. La proporción de votos de vecinos no es una probabilidad calibrada ni una garantía. No usar fixtures sintéticas como historia real de mercado.
 
 Para evaluar predicciones en el futuro se necesitarán resultados posteriores definidos de antemano, un conjunto de casos revisados, validación temporal fuera de muestra, comparación con líneas base y calibración. No se deben convertir asociaciones históricas en afirmaciones causales. La señal direccional y la explicación causal son tareas distintas: la primera estima la dirección de un horizonte; la segunda requiere evidencia revisada.
 

@@ -14,6 +14,8 @@ on:
       - "historical_learning.py"
       - "autonomous_research.py"
       - "prediction_evaluation.py"
+      - "prediction_memory.py"
+      - "docs/prediction-memory.md"
       - "docs/prediction-evaluation.md"
       - "docs/autonomous-research.md"
       - "docs/historical-learning.md"

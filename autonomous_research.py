@@ -133,7 +133,7 @@ def collect_context(symbol,start,end,feed_collector=collect_feed):
     return {"entries":entries,"feed_errors":errors,"interpretation":"Feed matches are leads, not proof of causation."}
 
 def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="data/historical_cases.json",
-        market_fetcher=fetch_candles,feed_collector=collect_feed):
+        prediction_memory_path="data/prediction_memory.json",market_fetcher=fetch_candles,feed_collector=collect_feed):
     symbol=symbol.upper().strip()
     market=market_fetcher(symbol,start,end,interval)
     candles=market["candles"]
@@ -159,26 +159,45 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       "notes":"Automated draft; review required before inclusion in learning summaries."}
     precedents=find_similar_cases(case,existing,limit=10)
     save_case(cases_path,case)
-    # Prediction is optional: short periods still produce the market/evidence report.
+    # Load prior-run direction outcomes before appending examples from this window.
+    from prediction_memory import load_examples, eligible_examples, build_examples, append_examples, PredictionMemoryError
+    memory_load_error=None; prior_memory=[]
+    try:
+        all_memory=load_examples(prediction_memory_path)
+        prior_memory=eligible_examples(all_memory,symbol,interval,24,6,as_of=candles[-1]["timestamp"],before_timestamp=candles[0]["timestamp"])
+    except (PredictionMemoryError, OSError, ValueError) as exc:
+        all_memory=[]; memory_load_error=str(exc)
     try:
         from prediction_evaluation import predict_next, walk_forward_evaluate
-        prediction_signal = predict_next(candles, lookback=24, horizon=6, min_train=100, neighbors=15)
+        prediction_signal = predict_next(candles, lookback=24, horizon=6, min_train=100, neighbors=15, memory_examples=prior_memory)
     except (ImportError, ValueError, KeyError, TypeError) as exc:
         prediction_signal = {"status":"INSUFFICIENT_DATA", "reason":str(exc)}
     try:
         from prediction_evaluation import walk_forward_evaluate
-        evaluation_full = walk_forward_evaluate(candles, lookback=24, horizon=6, min_train=100, neighbors=15)
+        evaluation_full = walk_forward_evaluate(candles, lookback=24, horizon=6, min_train=100, neighbors=15, memory_examples=prior_memory)
         prediction_evaluation = {"status":"COMPLETED", "prediction_count":evaluation_full["prediction_count"],
             "configuration":evaluation_full["configuration"], "metrics":evaluation_full["metrics"],
             "methodology":evaluation_full["methodology"]}
     except (ImportError, ValueError, KeyError, TypeError) as exc:
         prediction_evaluation = {"status":"INSUFFICIENT_DATA", "reason":str(exc)}
+    memory_update={"status":"UNAVAILABLE","prior_eligible_example_count":len(prior_memory),
+        "new_examples_added":0,"total_examples":len(all_memory),"path":str(prediction_memory_path)}
+    if memory_load_error:
+        memory_update["reason"]="Existing memory could not be loaded; no overwrite attempted: "+memory_load_error
+    else:
+        try:
+            new_examples=build_examples(candles,symbol,interval,market.get("provider","unknown"),lookback=24,horizon=6)
+            update=append_examples(prediction_memory_path,new_examples)
+            memory_update.update({"status":"UPDATED" if update["added_count"] else "UNCHANGED",
+                "new_examples_added":update["added_count"],"total_examples":update["total_count"]})
+        except (PredictionMemoryError, OSError, ValueError, KeyError, TypeError) as exc:
+            memory_update["reason"]=str(exc)
     report={"report_version":"1.1.0","run_id":"run-"+uuid4().hex,"asset_symbol":symbol,
       "period":{"start":start.isoformat().replace("+00:00","Z"),"end_inclusive":(end-timedelta(milliseconds=1)).isoformat().replace("+00:00","Z")},
       "generated_at":datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
       "market_data":{k:v for k,v in market.items() if k!="candles"},"market_analysis":stats,"contextual_evidence":context,
       "historical_summary":summarize_outcomes(existing),"similar_cases":precedents,"historical_case":case,
-      "prediction_signal":prediction_signal,"prediction_evaluation":prediction_evaluation,
+      "prediction_signal":prediction_signal,"prediction_evaluation":prediction_evaluation,"prediction_memory":memory_update,
       "limitations":["RSS coverage is incomplete; only literal ticker matches are collected.",
        "Collected evidence remains unverified; timing does not establish causality.",
        "Draft cases are excluded from learning summaries until reviewed and verified.",
@@ -195,7 +214,8 @@ def run(symbol,start,end,interval="1h",output_dir="research_runs",cases_path="da
       f"- Direction: {prediction_signal.get('signal','unavailable')}",
       f"- As of: {prediction_signal.get('as_of','unavailable')}",
       f"- Neighbor votes: {prediction_signal.get('neighbor_votes','unavailable')}",
-      f"- Historical evaluation status: {prediction_evaluation.get('status','UNKNOWN')}"]
+      f"- Historical evaluation status: {prediction_evaluation.get('status','UNKNOWN')}",
+      f"- Persistent memory: {memory_update.get('status')} ({memory_update.get('total_examples',0)} total examples; {memory_update.get('new_examples_added',0)} added)"]
     if prediction_signal.get("reason"): lines.append(f"- Reason: {prediction_signal['reason']}")
     if prediction_evaluation.get("metrics"):
         lines.append(f"- Walk-forward samples: {prediction_evaluation['prediction_count']}")
@@ -223,14 +243,15 @@ def main(argv=None):
     p.add_argument("symbol"); p.add_argument("start_date"); p.add_argument("end_date")
     p.add_argument("--interval",choices=sorted(INTERVALS),default="1h")
     p.add_argument("--output-dir",default="research_runs"); p.add_argument("--cases-path",default="data/historical_cases.json")
+    p.add_argument("--prediction-memory-path",default="data/prediction_memory.json")
     a=p.parse_args(argv)
     try:
-        result=run(a.symbol,utc_date(a.start_date),utc_date(a.end_date,True),a.interval,a.output_dir,a.cases_path)
+        result=run(a.symbol,utc_date(a.start_date),utc_date(a.end_date,True),a.interval,a.output_dir,a.cases_path,a.prediction_memory_path)
     except (ResearchError,CollectionError,ValueError,OSError) as exc:
         print(json.dumps({"ok":False,"error":str(exc)},indent=2),file=sys.stderr); return 1
     print(json.dumps({"ok":True,"symbol":result["asset_symbol"],"return_pct":result["market_analysis"]["return_pct"],
       "direction":result["market_analysis"]["direction"],"matching_evidence":len(result["contextual_evidence"]["entries"]),
-      "report":result["output_markdown"],"case_id":result["historical_case"]["case_id"],
+      "report":result["output_markdown"],"case_id":result["historical_case"]["case_id"],"prediction_signal":result["prediction_signal"],"prediction_memory":result["prediction_memory"],
       "warning":"Experimental direction signal only; no causal attribution or guaranteed forecast."},indent=2))
     return 0
 
