@@ -33,6 +33,56 @@ def utc_date(value, end_exclusive=False):
         parsed += timedelta(days=1)
     return datetime.combine(parsed, time.min, tzinfo=timezone.utc)
 
+def _fetch_coinbase_candles(symbol, start, end, interval, opener):
+    """Fetch Coinbase Exchange candles when Binance is region-blocked (HTTP 451)."""
+    granularity = {"1m":60, "5m":300, "15m":900, "1h":3600, "1d":86400}.get(interval)
+    if granularity is None:
+        raise ResearchError(
+            f"Binance returned HTTP 451 and Coinbase fallback does not support interval {interval}; "
+            "use 1m, 5m, 15m, 1h, or 1d"
+        )
+    start_s, end_s = int(start.timestamp()), int(end.timestamp())
+    candles = []
+    # Coinbase caps a response at 300 candles; request 250-interval windows to avoid truncation.
+    chunk_seconds = granularity * 250
+    cursor = start_s
+    while cursor < end_s:
+        chunk_end = min(cursor + chunk_seconds, end_s)
+        params = urllib.parse.urlencode({
+            "start": datetime.fromtimestamp(cursor, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "end": datetime.fromtimestamp(chunk_end, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "granularity": granularity,
+        })
+        url = f"https://api.exchange.coinbase.com/products/{symbol}-USD/candles?{params}"
+        request = Request(url, headers={"User-Agent":"CryptoDueDiligence/1.0","Accept":"application/json"})
+        try:
+            with opener(request, timeout=15) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+            raise ResearchError(f"Binance returned HTTP 451; Coinbase market-data fallback failed: {exc}") from exc
+        if not isinstance(payload, list):
+            raise ResearchError("Coinbase returned an invalid candle response")
+        for row in payload:
+            if not isinstance(row, list) or len(row) < 6:
+                raise ResearchError("Coinbase returned malformed candle data")
+            stamp = int(row[0])
+            if start_s <= stamp < end_s:
+                candles.append({
+                    "timestamp": datetime.fromtimestamp(stamp, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+                    "open": float(row[3]), "high": float(row[2]), "low": float(row[1]),
+                    "close": float(row[4]), "volume": float(row[5]),
+                })
+        cursor = chunk_end
+    # Coinbase returns newest-first and overlapping boundaries may occur; normalize and deduplicate.
+    unique = {item["timestamp"]: item for item in candles}
+    candles = [unique[key] for key in sorted(unique)]
+    if not candles:
+        raise ResearchError(f"no {symbol}-USD Coinbase candles for requested period after Binance HTTP 451")
+    return {"provider":"Coinbase Exchange public API (fallback after Binance HTTP 451)",
+            "symbol":symbol+"-USD","interval":interval,
+            "retrieved_at":datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
+            "candles":candles}
+
 def fetch_candles(symbol, start, end, interval="1h", opener=urlopen):
     symbol = symbol.upper().strip()
     if not re.fullmatch(r"[A-Z0-9]{2,20}", symbol):
@@ -52,7 +102,11 @@ def fetch_candles(symbol, start, end, interval="1h", opener=urlopen):
         try:
             with opener(request, timeout=15) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+        except HTTPError as exc:
+            if exc.code == 451:
+                return _fetch_coinbase_candles(symbol, start, end, interval, opener)
+            raise ResearchError(f"market data request failed: {exc}") from exc
+        except (URLError, TimeoutError, OSError, ValueError) as exc:
             raise ResearchError(f"market data request failed: {exc}") from exc
         pages += 1
         if not isinstance(payload, list):
