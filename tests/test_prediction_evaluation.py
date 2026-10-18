@@ -49,7 +49,7 @@ class PredictionEvaluationTests(unittest.TestCase):
 
     def test_insufficient_data_fails(self):
         with self.assertRaises(EvaluationError):
-            walk_forward_evaluate(candles(60),lookback=12,horizon=3,min_train=40)
+            walk_forward_evaluate(candles(55),lookback=12,horizon=3,min_train=40)
 
     def test_duplicate_timestamps_fail(self):
         rows=candles()
