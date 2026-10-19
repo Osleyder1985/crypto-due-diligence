@@ -178,6 +178,21 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                     "last_update_id": last_update_id, "raw_snapshot": snapshot,
                 })
                 synchronized = False
+
+                def write_reconstructed_book():
+                    if not synchronized:
+                        return
+                    raw_depth.write({
+                        "schema_version": "1.0", "record_type": "reconstructed_book",
+                        "venue": "binance_spot", "symbol": symbol, "received_at": utc_now(),
+                        "last_update_id": last_update_id,
+                        "raw_snapshot": {
+                            "lastUpdateId": last_update_id, "limit": snapshot_limit,
+                            "bids": [[str(price), str(quantity)] for price, quantity in sorted(bids.items(), reverse=True)],
+                            "asks": [[str(price), str(quantity)] for price, quantity in sorted(asks.items())],
+                        },
+                    })
+
                 async for message in socket:
                     received_at = utc_now()
                     envelope = json.loads(message)
@@ -193,6 +208,7 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                         })
                         event_count += 1
                         if max_events is not None and event_count >= max_events:
+                            write_reconstructed_book()
                             return
                         continue
                     if not stream.endswith("@depth@100ms"):
@@ -205,6 +221,7 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                     })
                     event_count += 1
                     if max_events is not None and event_count >= max_events:
+                        write_reconstructed_book()
                         return
                     if not synchronized:
                         if event.get("u", 0) <= last_update_id:

@@ -24,7 +24,46 @@ def read_jsonl(path):
     return records
 
 
-def summarize(symbol, lifecycle_records, metric_records, price_bucket=Decimal("100")):
+def summarize_snapshot_liquidity(depth_records, price_bucket=Decimal("100"), top_n=10):
+    """Rank visible price concentrations from the latest captured REST snapshot."""
+    if price_bucket <= 0:
+        raise ValueError("price_bucket must be positive")
+    snapshots = [row for row in depth_records if row.get("record_type") in {"snapshot", "reconstructed_book"} and isinstance(row.get("raw_snapshot"), dict)]
+    if not snapshots:
+        return {"snapshot_at": None, "source_record_type": None, "mid_price": None, "bids": [], "asks": [], "price_buckets": []}
+    snapshot = snapshots[-1]
+    raw = snapshot["raw_snapshot"]
+    bids = [(Decimal(str(p)), Decimal(str(q))) for p, q in raw.get("bids", []) if Decimal(str(p)) > 0 and Decimal(str(q)) > 0]
+    asks = [(Decimal(str(p)), Decimal(str(q))) for p, q in raw.get("asks", []) if Decimal(str(p)) > 0 and Decimal(str(q)) > 0]
+    if not bids or not asks:
+        return {"snapshot_at": snapshot.get("received_at"), "source_record_type": snapshot.get("record_type"), "mid_price": None, "bids": [], "asks": [], "price_buckets": []}
+    best_bid, best_ask = max(p for p, _ in bids), min(p for p, _ in asks)
+    mid = (best_bid + best_ask) / Decimal(2)
+    grouped = {side: defaultdict(lambda: {"base_quantity": Decimal(0), "quote_notional": Decimal(0), "levels": 0}) for side in ("bid", "ask")}
+    ranked = {"bid": [], "ask": []}
+    for side, levels in (("bid", bids), ("ask", asks)):
+        for price, quantity in levels:
+            notional = price * quantity
+            bucket = (price / price_bucket).to_integral_value(rounding="ROUND_FLOOR") * price_bucket
+            grouped[side][bucket]["base_quantity"] += quantity
+            grouped[side][bucket]["quote_notional"] += notional
+            grouped[side][bucket]["levels"] += 1
+            distance = (mid - price) / mid * 100 if side == "bid" else (price - mid) / mid * 100
+            ranked[side].append({"price": str(price), "base_quantity": str(quantity), "quote_notional": str(notional), "distance_from_mid_pct": str(distance)})
+    buckets = []
+    for bucket in sorted(set(grouped["bid"]) | set(grouped["ask"])):
+        item = {"price_bucket_start": str(bucket), "price_bucket_end_exclusive": str(bucket + price_bucket)}
+        for side in ("bid", "ask"):
+            value = grouped[side].get(bucket, {})
+            item[f"{side}_base_quantity"] = str(value.get("base_quantity", Decimal(0)))
+            item[f"{side}_quote_notional"] = str(value.get("quote_notional", Decimal(0)))
+            item[f"{side}_level_count"] = value.get("levels", 0)
+        buckets.append(item)
+    return {"snapshot_at": snapshot.get("received_at"), "source_record_type": snapshot.get("record_type"), "mid_price": str(mid), "best_bid": str(best_bid), "best_ask": str(best_ask), "snapshot_limit": raw.get("limit"),
+            "bids": sorted(ranked["bid"], key=lambda x: Decimal(x["quote_notional"]), reverse=True)[:top_n],
+            "asks": sorted(ranked["ask"], key=lambda x: Decimal(x["quote_notional"]), reverse=True)[:top_n],
+            "price_buckets": sorted(buckets, key=lambda x: Decimal(x["bid_quote_notional"]) + Decimal(x["ask_quote_notional"]), reverse=True)}
+def summarize(symbol, lifecycle_records, metric_records, price_bucket=Decimal("100"), depth_records=None):
     """Summarize observed price-level events; never infer cancellation intent."""
     if price_bucket <= 0:
         raise ValueError("price_bucket must be positive")
@@ -97,6 +136,8 @@ def summarize(symbol, lifecycle_records, metric_records, price_bucket=Decimal("1
             "ask_completed_lifetimes": lifetime_summary(ask_life),
         })
 
+    snapshot_liquidity = summarize_snapshot_liquidity(depth_records or [], price_bucket)
+
     return {
         "schema_version": "1.0",
         "symbol": symbol.upper(),
@@ -111,9 +152,12 @@ def summarize(symbol, lifecycle_records, metric_records, price_bucket=Decimal("1
         "valid_book_metric_samples": len(metric_rows),
         "latest_book_metrics": metric_rows[-1] if metric_rows else None,
         "price_buckets": buckets,
+        "snapshot_liquidity_map": snapshot_liquidity,
         "limitations": [
             "A removed visible level is not proof of cancellation, execution, spoofing, or intent.",
             "Lifetime measures continuous observed price-level presence, not individual-order age.",
+            "The concentration map uses the latest persisted reconstructed book when available; otherwise it falls back to the initial REST snapshot.",
+            "Snapshot depth is limited by the REST request limit; levels outside captured depth are not included.",
             "Only captured records are summarized; reconnects, process restarts, and capture gaps limit interpretation.",
             "Descriptive summaries are not investment advice or a validated predictive signal.",
         ],
@@ -150,6 +194,18 @@ def render_markdown(report):
         ])
     else:
         lines.append("No valid book-metric samples were found.")
+    snapshot_map = report.get("snapshot_liquidity_map", {})
+    lines.extend(["", "## Snapshot price concentrations", "", "Visible levels from the latest persisted book state, ranked by quote notional; falls back to the initial REST snapshot if capture ended before synchronization.", ""])
+    if snapshot_map.get("mid_price") is not None:
+        lines.extend([f"- Snapshot time: {snapshot_map.get('snapshot_at') or 'unknown'}", f"- Snapshot mid price: {snapshot_map['mid_price']}", "", "| Side | Price | BTC quantity | Quote notional | Distance from mid (%) |", "|---|---:|---:|---:|---:|"])
+        for side in ("bids", "asks"):
+            for row in snapshot_map.get(side, []):
+                lines.append(f"| {side[:-1].upper()} | {row['price']} | {row['base_quantity']} | {row['quote_notional']} | {row['distance_from_mid_pct']} |")
+        lines.extend(["", "### Aggregated price buckets", "", "| Price range | Bid notional | Ask notional | Bid levels | Ask levels |", "|---|---:|---:|---:|---:|"])
+        for row in snapshot_map.get("price_buckets", []):
+            lines.append(f"| [{row['price_bucket_start']}, {row['price_bucket_end_exclusive']}) | {row['bid_quote_notional']} | {row['ask_quote_notional']} | {row['bid_level_count']} | {row['ask_level_count']} |")
+    else:
+        lines.append("No valid REST snapshot with both bids and asks was available.")
     lines.extend([
         "",
         "## Price buckets",
@@ -180,6 +236,7 @@ def main():
         read_jsonl(root / f"{symbol}-level-lifecycle.jsonl"),
         read_jsonl(root / f"{symbol}-book-metrics.jsonl"),
         args.price_bucket,
+        read_jsonl(root / f"{symbol}-depth-events.jsonl"),
     )
     output.mkdir(parents=True, exist_ok=True)
     (output / f"{symbol}-liquidity-report.json").write_text(
