@@ -11,6 +11,11 @@ class NearbyZonesTests(unittest.TestCase):
  def test_filters_far_zones(self):
   r=build_nearby_report([snap("t1",82100,[bucket(80000,bid="500000"),bucket(82000,bid="300000")]),snap("t2",82100,[bucket(82000,bid="300000")])],1,75)
   self.assertEqual(len(r["zones"]),1); self.assertEqual(r["zones"][0]["price_low"],"82000")
+ def test_default_proximity_is_20_percent(self):
+  r=build_nearby_report([snap("t1",100000,[bucket(85000,bid="300000"),bucket(79000,bid="300000")]),snap("t2",100000,[bucket(85000,bid="300000"),bucket(79000,bid="300000")])])
+  self.assertEqual(r["max_distance_pct"],"20")
+  self.assertIn("85000", [z["price_low"] for z in r["zones"]])
+  self.assertNotIn("79000", [z["price_low"] for z in r["zones"]])
  def test_rejects_invalid_price_and_empty_input(self):
   with self.assertRaises(ValueError): build_nearby_report([snap("t",0,[])])
   with self.assertRaises(ValueError): build_nearby_report([])
