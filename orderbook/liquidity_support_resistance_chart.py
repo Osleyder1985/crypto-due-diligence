@@ -165,9 +165,17 @@ def main():
                 transform=ax.transAxes, ha="right", va="top", fontsize=8,
                 bbox={"facecolor": "white", "alpha": .9, "edgecolor": "#888888", "pad": 5})
 
-    def pct(span):
+    def span_share_pct(span):
+        """Share of the combined captured price interval spanned by this side's bounds.
+
+        This is a geometric span metric, not a measure of order-book completeness,
+        bucket density, or the fraction of Kraken's available depth captured.
+        """
         return max(0.0, span[1] - span[0]) / (high - low) * 100
-    bid_coverage, ask_coverage = pct((bid_low, bid_high)), pct((ask_low, ask_high))
+    bid_span_share, ask_span_share = (
+        span_share_pct((bid_low, bid_high)),
+        span_share_pct((ask_low, ask_high)),
+    )
     ax.set_ylim(low, high)
     ax.set_xlabel("Average visible notional per price bucket (USD): asks left ← | → bids right")
     ax.set_ylabel("BTC/USD price")
@@ -177,10 +185,10 @@ def main():
     ax.grid(True, axis="y", alpha=.25)
     ax.legend(loc="lower left")
     note = (f"Captured range: ${low:,.2f}–${high:,.2f} | latest mid-price: ${mid:,.2f} | "
-            f"BID span coverage: {bid_coverage:.1f}% | ASK span coverage: {ask_coverage:.1f}%. "
+            f"BID price-span share: {bid_span_share:.1f}% | ASK price-span share: {ask_span_share:.1f}%. "
+            "Price-span share is geometric only; it is NOT capture completeness or total available depth. "
             "//// outside that side's captured bounds = not captured; .. inside captured bounds = no observed notional. "
-            "Coverage describes price span, not liquidity density. Bars average observed bucket values across snapshots. "
-            "Candidate zones are not confirmed support/resistance.")
+            "Bars average observed bucket values across snapshots. Candidate zones are not confirmed support/resistance.")
     # Reserve enough room for a readable, wrapped explanation below the axes.
     fig.subplots_adjust(left=.08, right=.98, top=.93, bottom=.24)
     fig.text(.01, .025, textwrap.fill(note, width=145), fontsize=8, ha="left", va="bottom")
@@ -192,10 +200,12 @@ def main():
         "chart": str(out), "reference_mid_price": mid, "window_low": low, "window_high": high,
         "latest_best_bid": latest_best_bid, "latest_worst_bid": latest_worst_bid,
         "latest_best_ask": latest_best_ask, "latest_worst_ask": latest_worst_ask,
-        "bid_coverage_pct": round(bid_coverage, 2), "ask_coverage_pct": round(ask_coverage, 2),
+        "bid_price_span_share_pct": round(bid_span_share, 2),
+        "ask_price_span_share_pct": round(ask_span_share, 2),
         "bucket_count": len(prices), "candidate_zones_in_window": len(zones),
         "candidate_zones_labeled": len(labeled), "bytes": out.stat().st_size,
-        "coverage_semantics": "union of captured snapshot bounds; hatched outside side bounds, dotted internal buckets with no observed notional"
+        "price_span_share_semantics": "side-bound width divided by combined captured price-range width; geometric span only, not capture completeness or total available depth",
+        "plot_marking_semantics": "hatched outside side bounds; dotted internal buckets with no observed notional"
     }, indent=2))
 
 
