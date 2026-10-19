@@ -33,6 +33,10 @@ def apply_book_message(book, message):
                 book[side].pop(price, None)
             else:
                 book[side][price] = qty
+    # Kraken sends updates that can add levels beyond the initial subscription depth.
+    # Keep only the best 1000 levels on each side so reports honor the requested depth.
+    book["bids"] = dict(sorted(book["bids"].items(), key=lambda row: Decimal(row[0]), reverse=True)[:1000])
+    book["asks"] = dict(sorted(book["asks"].items(), key=lambda row: Decimal(row[0]))[:1000])
     book["last_update_at"] = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     return is_snapshot
 
