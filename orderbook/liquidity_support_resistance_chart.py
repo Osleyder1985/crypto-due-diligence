@@ -63,6 +63,14 @@ def _merge(intervals):
     return merged
 
 
+def _span_share_pct(span, combined_range):
+    """Return a side's geometric price-span share, not depth completeness."""
+    total = combined_range[1] - combined_range[0]
+    if total <= 0:
+        raise ValueError("combined captured price range must have positive width")
+    return max(0.0, span[1] - span[0]) / total * 100
+
+
 def main():
     import matplotlib
     matplotlib.use("Agg")
@@ -165,16 +173,9 @@ def main():
                 transform=ax.transAxes, ha="right", va="top", fontsize=8,
                 bbox={"facecolor": "white", "alpha": .9, "edgecolor": "#888888", "pad": 5})
 
-    def span_share_pct(span):
-        """Share of the combined captured price interval spanned by this side's bounds.
-
-        This is a geometric span metric, not a measure of order-book completeness,
-        bucket density, or the fraction of Kraken's available depth captured.
-        """
-        return max(0.0, span[1] - span[0]) / (high - low) * 100
     bid_span_share, ask_span_share = (
-        span_share_pct((bid_low, bid_high)),
-        span_share_pct((ask_low, ask_high)),
+        _span_share_pct((bid_low, bid_high), (low, high)),
+        _span_share_pct((ask_low, ask_high), (low, high)),
     )
     ax.set_ylim(low, high)
     ax.set_xlabel("Average visible notional per price bucket (USD): asks left ← | → bids right")
