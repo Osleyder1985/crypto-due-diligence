@@ -106,10 +106,13 @@ def main():
     ax.grid(True, axis="y", alpha=.25)
     ax.legend(loc="lower left")
     coverage = "No buckets observed"
+    observed_fraction_pct = 0.0
     if coverage_low is not None:
         coverage = f"Observed bucket span: ${coverage_low:,.0f}–${coverage_high:,.0f}"
+        observed_fraction_pct = max(0.0, min(100.0, (min(coverage_high, high) - max(coverage_low, low)) / (high - low) * 100))
     fig.text(.01, .005,
-             f"Requested window: ${low:,.0f}–${high:,.0f} | {coverage} | "
+             f"Requested window: ${low:,.0f}–${high:,.0f} | {coverage} "
+             f"({observed_fraction_pct:.1f}% of requested price span observed) | "
              f"{len(prices)} distinct buckets across {len(records)} snapshots. "
              "Hatched areas have no observed buckets; they are not zero liquidity. "
              "Zones are candidates, not confirmed support/resistance.",
@@ -122,7 +125,7 @@ def main():
         "chart": str(out), "reference_mid_price": mid,
         "window_low": low, "window_high": high,
         "observed_coverage_low": coverage_low, "observed_coverage_high": coverage_high,
-        "bucket_count": len(prices), "candidate_zones_in_window": len(zones),
+        "bucket_count": len(prices), "observed_fraction_of_requested_span_pct": round(observed_fraction_pct, 2), "candidate_zones_in_window": len(zones),
         "candidate_zones_labeled": len(labeled), "bytes": out.stat().st_size
     }, indent=2))
 
