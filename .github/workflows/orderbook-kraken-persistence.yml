@@ -42,8 +42,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Test persistence calculations
-        run: python -m unittest discover -s tests -p 'test_orderbook_persistence.py' -v
+      - name: Test persistence and nearby-zone calculations
+        run: |
+          python -m unittest discover -s tests -p 'test_orderbook_persistence.py' -v
+          python -m unittest discover -s tests -p 'test_orderbook_nearby_support_resistance.py' -v
       - name: Capture repeated Kraken books and summarize persistence
         env:
           SNAPSHOT_COUNT: ${{ inputs.snapshots }}
@@ -60,31 +62,39 @@ jobs:
             --top-n 20 \
             --min-bucket-notional-usd 250000 \
             --output-dir artifacts/orderbook-persistence
-      - name: Validate persistence report
+      - name: Rank nearby candidate support and resistance
+        run: |
+          python -m orderbook.nearby_support_resistance \
+            --input artifacts/orderbook-persistence/kraken-xbtusd-snapshots.jsonl \
+            --output-dir artifacts/orderbook-persistence \
+            --max-distance-pct 2.0 \
+            --min-persistence-pct 50
+      - name: Validate persistence and nearby-zone reports
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           root = Path("artifacts/orderbook-persistence")
           report = json.loads((root / "kraken-liquidity-persistence.json").read_text())
+          nearby = json.loads((root / "kraken-nearby-support-resistance.json").read_text())
           lines = (root / "kraken-xbtusd-snapshots.jsonl").read_text().splitlines()
-          assert report["snapshot_count"] == len(lines)
-          assert report["snapshot_count"] >= 2
-          assert report["persistent_buckets"]
+          assert report["snapshot_count"] == len(lines) >= 2
           assert report["venue"] == "kraken_spot"
+          assert nearby["snapshot_count"] == len(lines)
+          assert float(nearby["reference_mid_price"]) > 0
+          assert all(zone["status"] == "candidate_unconfirmed" for zone in nearby["zones"])
           print(json.dumps({
               "snapshot_count": report["snapshot_count"],
-              "first_snapshot_at": report["first_snapshot_at"],
-              "last_snapshot_at": report["last_snapshot_at"],
-              "persistent_buckets": len(report["persistent_buckets"]),
-              "repeated_top_levels": len(report["repeated_top_levels"]),
+              "reference_mid_price": nearby["reference_mid_price"],
+              "candidate_zone_count": len(nearby["zones"]),
+              "nearby_report": str(root / "kraken-nearby-support-resistance.json"),
           }, indent=2))
           PY
-      - name: Upload raw samples and persistence reports
+      - name: Upload raw samples and reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kraken-xbtusd-persistence-${{ github.run_id }}
           path: artifacts/orderbook-persistence/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
