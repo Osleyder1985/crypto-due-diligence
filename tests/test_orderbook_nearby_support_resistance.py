@@ -17,9 +17,17 @@ class NearbyZonesTests(unittest.TestCase):
   self.assertIn("85000", [z["price_low"] for z in r["zones"]])
   self.assertNotIn("79000", [z["price_low"] for z in r["zones"]])
  def test_default_minimum_persistence_is_80_percent(self):
-  r=build_nearby_report([snap("t1",100000,[bucket(99900,bid="300000")]),snap("t2",100000,[bucket(99900,bid="300000")]),snap("t3",100000,[bucket(99900,bid="300000")]),snap("t4",100000,[bucket(99900,bid="300000")]),snap("t5",100000,[bucket(99900,bid="300000")])])
+  records=[
+   snap("t1",100000,[bucket(99900,bid="300000"),bucket(99800,bid="300000")]),
+   snap("t2",100000,[bucket(99900,bid="300000"),bucket(99800,bid="300000")]),
+   snap("t3",100000,[bucket(99900,bid="300000"),bucket(99800,bid="300000")]),
+   snap("t4",100000,[bucket(99900,bid="300000")]),
+   snap("t5",100000,[bucket(99900,bid="300000")]),
+  ]
+  r=build_nearby_report(records)
   self.assertEqual(r["min_persistence_pct"],"80")
-  self.assertEqual(len(r["zones"]),0)
+  self.assertIn("99900", [z["price_low"] for z in r["zones"]])
+  self.assertNotIn("99800", [z["price_low"] for z in r["zones"]])
  def test_rejects_invalid_price_and_empty_input(self):
   with self.assertRaises(ValueError): build_nearby_report([snap("t",0,[])])
   with self.assertRaises(ValueError): build_nearby_report([])
