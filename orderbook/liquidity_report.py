@@ -31,8 +31,7 @@ def summarize_snapshot_liquidity(depth_records, price_bucket=Decimal("100"), top
     snapshots = [row for row in depth_records if row.get("record_type") in {"snapshot", "reconstructed_book"} and isinstance(row.get("raw_snapshot"), dict)]
     if not snapshots:
         return {"snapshot_at": None, "source_record_type": None, "mid_price": None, "bids": [], "asks": [], "price_buckets": []}
-    reconstructed = [row for row in snapshots if row.get("record_type") == "reconstructed_book"]
-    snapshot = reconstructed[-1] if reconstructed else snapshots[-1]
+    snapshot = snapshots[-1]
     raw = snapshot["raw_snapshot"]
     bids = [(Decimal(str(p)), Decimal(str(q))) for p, q in raw.get("bids", []) if Decimal(str(p)) > 0 and Decimal(str(q)) > 0]
     asks = [(Decimal(str(p)), Decimal(str(q))) for p, q in raw.get("asks", []) if Decimal(str(p)) > 0 and Decimal(str(q)) > 0]
