@@ -22,9 +22,9 @@ class KrakenSnapshotTests(unittest.TestCase):
         self.assertEqual(report["ask_depth_usd"], "506")
         self.assertEqual(report["top_concentrated_levels_by_notional"][0]["side"], "ask")
         self.assertEqual(report["top_concentrated_levels_by_notional"][0]["notional_usd"], "404")
-        self.assertEqual(report["price_buckets"][0]["price_bucket_start"], "100")
-        self.assertEqual(report["price_buckets"][0]["ask_levels"], 2)
-        self.assertEqual(report["price_buckets"][0]["bid_levels"], 1)
+        self.assertEqual(report["price_buckets"][1]["price_bucket_start"], "100")
+        self.assertEqual(report["price_buckets"][1]["ask_levels"], 2)
+        self.assertEqual(report["price_buckets"][1]["bid_levels"], 1)
         self.assertIn("single snapshot", " ".join(report["limitations"]))
 
     def test_empty_side_rejected(self):
