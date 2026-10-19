@@ -73,7 +73,7 @@ def compare(rest_path, ws_path, output_dir):
     overlap = max(0.0, (overlap_end - overlap_start).total_seconds())
     report = {
         "schema_version": "1.0",
-        "comparison_method": "Two live Kraken XBT/USD captures started concurrently. REST samples are requested at depth 500 per side every 15 seconds; WebSocket v2 maintains up to 1000 price levels per side and is sampled every 5 seconds. This is a comparison of observed snapshots, not proof that REST and WebSocket snapshots are identical or that either contains all market liquidity.",
+        "comparison_method": "Se iniciaron simultáneamente dos capturas en vivo de Kraken XBT/USD. REST solicita 500 niveles por lado cada 15 segundos; WebSocket v2 mantiene hasta 1000 niveles de precio por lado y se muestrea cada 5 segundos. Se comparan las muestras observadas; esto no demuestra que las instantáneas sean idénticas ni que alguna contenga toda la liquidez del mercado.",
         "pair": "XBT/USD",
         "rest": rest,
         "websocket": ws,
@@ -84,10 +84,10 @@ def compare(rest_path, ws_path, output_dir):
             "ask_delta": ws["ask_level_count_median"] - rest["ask_level_count_median"],
         },
         "interpretation_limits": [
-            "Depth is the number of price levels returned or maintained, not a completeness guarantee for all market liquidity.",
-            "The REST endpoint is a one-shot snapshot sampled periodically; WebSocket is a maintained book with incremental updates and checksum validation.",
-            "Differences in outer price limits reflect the observed books and market movement as well as depth; they must not be interpreted as a direct quality score.",
-            "A positive temporal overlap makes the windows comparable in time, but does not make each individual sample simultaneous.",
+            "La profundidad es el número de niveles de precio devueltos o mantenidos; no garantiza que se haya capturado toda la liquidez del mercado.",
+            "REST entrega instantáneas puntuales tomadas periódicamente; WebSocket mantiene el libro mediante actualizaciones incrementales y validación de checksum.",
+            "Las diferencias en los precios extremos reflejan los libros observados, la profundidad y los movimientos del mercado; no deben interpretarse como una puntuación directa de calidad.",
+            "Un solapamiento temporal positivo permite comparar las ventanas de captura, pero no significa que cada muestra individual sea simultánea.",
         ],
     }
     root = Path(output_dir)
@@ -96,24 +96,24 @@ def compare(rest_path, ws_path, output_dir):
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     lines = [
-        "# Kraken REST 500 vs WebSocket v2 1000 depth comparison",
+        "# Comparación de profundidad: Kraken REST 500 frente a WebSocket v2 1000",
         "",
-        f"- Pair: {report['pair']}",
-        f"- Temporal overlap: {report['temporal_overlap_seconds']} seconds",
-        f"- Windows overlap: {'yes' if report['temporal_windows_overlap'] else 'no'}",
+        f"- Par: {report['pair']}",
+        f"- Solapamiento temporal: {report['temporal_overlap_seconds']} segundos",
+        f"- ¿Se solapan las ventanas?: {'sí' if report['temporal_windows_overlap'] else 'no'}",
         "",
-        "| Metric | REST depth 500 | WebSocket v2 depth 1000 |",
+        "| Métrica | REST: profundidad 500 | WebSocket v2: profundidad 1000 |",
         "|---|---:|---:|",
-        f"| Samples | {rest['snapshot_count']} | {ws['snapshot_count']} |",
-        f"| Capture window (s) | {rest['window_seconds']} | {ws['window_seconds']} |",
-        f"| Median BID levels | {rest['bid_level_count_median']} | {ws['bid_level_count_median']} |",
-        f"| Median ASK levels | {rest['ask_level_count_median']} | {ws['ask_level_count_median']} |",
-        f"| Median worst BID price | {rest['worst_bid_price_median']} | {ws['worst_bid_price_median']} |",
-        f"| Median worst ASK price | {rest['worst_ask_price_median']} | {ws['worst_ask_price_median']} |",
-        f"| Median mid price | {rest['mid_price_median']} | {ws['mid_price_median']} |",
-        f"| Checksum-validated WS samples | n/a | {ws['checksum_validated_snapshots']}/{ws['snapshot_count']} |",
+        f"| Número de muestras | {rest['snapshot_count']} | {ws['snapshot_count']} |",
+        f"| Duración de captura (s) | {rest['window_seconds']} | {ws['window_seconds']} |",
+        f"| Mediana de niveles BID (compra) | {rest['bid_level_count_median']} | {ws['bid_level_count_median']} |",
+        f"| Mediana de niveles ASK (venta) | {rest['ask_level_count_median']} | {ws['ask_level_count_median']} |",
+        f"| Mediana del precio BID más alejado | {rest['worst_bid_price_median']} | {ws['worst_bid_price_median']} |",
+        f"| Mediana del precio ASK más alejado | {rest['worst_ask_price_median']} | {ws['worst_ask_price_median']} |",
+        f"| Mediana del precio medio | {rest['mid_price_median']} | {ws['mid_price_median']} |",
+        f"| Muestras WebSocket con checksum validado | No aplica | {ws['checksum_validated_snapshots']}/{ws['snapshot_count']} |",
         "",
-        "## Interpretation limits",
+        "## Límites de interpretación",
         "",
     ] + [f"- {item}" for item in report["interpretation_limits"]]
     (root / "kraken-ws-rest-depth-comparison.md").write_text(
