@@ -51,6 +51,21 @@ class LiquidityReportTests(unittest.TestCase):
         ask_bucket = next(row for row in result["price_buckets"] if row["price_bucket_start"] == "99100")
         self.assertEqual(Decimal(ask_bucket["ask_quote_notional"]), Decimal("99100"))
 
+    def test_reconstructed_book_is_preferred_over_initial_snapshot(self):
+        from orderbook.liquidity_report import summarize_snapshot_liquidity
+
+        depth = [
+            {"record_type": "snapshot", "received_at": "t0", "raw_snapshot": {
+                "bids": [["99000", "1"]], "asks": [["99100", "1"]]}},
+            {"record_type": "reconstructed_book", "received_at": "t1", "raw_snapshot": {
+                "lastUpdateId": 2, "bids": [["98900", "4"]], "asks": [["99200", "3"]]}},
+        ]
+        result = summarize_snapshot_liquidity(depth, Decimal("100"))
+        self.assertEqual(result["source_record_type"], "reconstructed_book")
+        self.assertEqual(result["snapshot_at"], "t1")
+        self.assertEqual(result["bids"][0]["price"], "98900")
+        self.assertEqual(result["asks"][0]["price"], "99200")
+
     def test_snapshot_liquidity_empty_without_snapshot(self):
         from orderbook.liquidity_report import summarize_snapshot_liquidity
 
