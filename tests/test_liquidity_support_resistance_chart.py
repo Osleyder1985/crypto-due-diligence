@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orderbook.liquidity_support_resistance_chart import read_records, _merge, _num, _captured_bounds, main
+from orderbook.liquidity_support_resistance_chart import read_records, _merge, _num, _captured_bounds, _span_share_pct, main
 
 
 class ChartInputTests(unittest.TestCase):
@@ -41,6 +41,16 @@ class ChartInputTests(unittest.TestCase):
         self.assertEqual(_num(record, "best_bid_price", "best_bid"), 100000.0)
         self.assertEqual(_num(record, "worst_ask_price"), 101500.0)
         self.assertIsNone(_num({"best_bid": "100000"}, "worst_bid_price"))
+
+    def test_span_share_is_geometric_not_capture_completeness(self):
+        # Asymmetric side spans can sum to less than 100%; this says nothing about
+        # whether the exchange's full depth or all price buckets were captured.
+        self.assertAlmostEqual(_span_share_pct((90, 100), (90, 130)), 25.0)
+        self.assertAlmostEqual(_span_share_pct((100, 130), (90, 130)), 75.0)
+
+    def test_span_share_rejects_empty_combined_range(self):
+        with self.assertRaises(ValueError):
+            _span_share_pct((100, 100), (100, 100))
 
     def test_captured_bounds_union_all_snapshots_not_only_last(self):
         records = [
