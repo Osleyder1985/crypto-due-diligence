@@ -5,14 +5,41 @@ from datetime import datetime, timezone
 from decimal import Decimal
 import json
 from pathlib import Path
+import zlib
 
 from orderbook.kraken_snapshot_collector import build_report
 
 WS_URL = "wss://ws.kraken.com/v2"
 
 
+class BookChecksumError(RuntimeError):
+    """Raised when the local L2 book fails Kraken's CRC32 checksum."""
+
+
+def _checksum_component(value):
+    """Format a decimal exactly as Kraken specifies for its v2 checksum."""
+    text = format(Decimal(str(value)), "f").replace(".", "")
+    return text.lstrip("0") or "0"
+
+
+def calculate_checksum(book):
+    """Return the unsigned CRC32 checksum for the top 10 asks then bids."""
+    parts = []
+    for side, reverse in (("asks", False), ("bids", True)):
+        levels = sorted(
+            book[side].items(),
+            key=lambda row: Decimal(row[0]),
+            reverse=reverse,
+        )[:10]
+        for price, qty in levels:
+            parts.append(_checksum_component(price))
+            parts.append(_checksum_component(qty))
+    payload = "".join(parts).encode("ascii")
+    return zlib.crc32(payload) & 0xFFFFFFFF
+
+
 def apply_book_message(book, message):
-    """Apply one Kraken v2 book snapshot/update payload to price->quantity maps."""
+    """Apply one Kraken v2 book snapshot/update and validate its checksum."""
     data = message.get("data")
     if not isinstance(data, list) or not data:
         return False
@@ -31,9 +58,23 @@ def apply_book_message(book, message):
                 book[side].pop(price, None)
             else:
                 book[side][price] = qty
-    book["bids"] = dict(sorted(book["bids"].items(), key=lambda row: Decimal(row[0]), reverse=True)[:1000])
-    book["asks"] = dict(sorted(book["asks"].items(), key=lambda row: Decimal(row[0]))[:1000])
-    book["last_update_at"] = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    book["bids"] = dict(sorted(
+        book["bids"].items(), key=lambda row: Decimal(row[0]), reverse=True
+    )[:1000])
+    book["asks"] = dict(sorted(
+        book["asks"].items(), key=lambda row: Decimal(row[0])
+    )[:1000])
+    if "checksum" in item:
+        actual = calculate_checksum(book)
+        expected = int(item["checksum"])
+        if actual != expected:
+            raise BookChecksumError(
+                f"Kraken book checksum mismatch: expected {expected}, calculated {actual}"
+            )
+    book["last_update_at"] = item.get("timestamp") or datetime.now(
+        timezone.utc
+    ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    book["checksum"] = item.get("checksum")
     return is_snapshot
 
 
@@ -56,6 +97,8 @@ def snapshot_report(book, pair="BTC/USD", top_n=20):
     report["worst_bid_price"] = str(min(Decimal(row[0]) for row in bids))
     report["best_ask_price"] = str(min(Decimal(row[0]) for row in asks))
     report["worst_ask_price"] = str(max(Decimal(row[0]) for row in asks))
+    report["book_checksum"] = book.get("checksum")
+    report["book_checksum_validated"] = book.get("checksum") is not None
     report["scope"] = "Maintained Kraken Spot WebSocket v2 L2 book; up to 1000 price levels per side, aggregated public liquidity only."
     return report
 
@@ -65,7 +108,7 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
     raw_path = root / "kraken-xbtusd-ws-snapshots.jsonl"
-    book = {"bids": {}, "asks": {}, "last_update_at": None}
+    book = {"bids": {}, "asks": {}, "last_update_at": None, "checksum": None}
     ready = asyncio.Event()
 
     async def reader():
@@ -81,8 +124,11 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
                         "req_id": 1,
                     }))
                     async for raw in ws:
-                        message = json.loads(raw)
+                        message = json.loads(raw, parse_float=Decimal)
                         if message.get("channel") == "book" and message.get("type") in ("snapshot", "update"):
+                            data = message.get("data") or []
+                            if not data or "checksum" not in data[0]:
+                                raise BookChecksumError("Kraken book message omitted required checksum")
                             if apply_book_message(book, message):
                                 ready.set()
                         elif message.get("method") == "subscribe" and message.get("success") is False:
@@ -90,11 +136,17 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
                         elif message.get("success") is False:
                             raise RuntimeError("Kraken WebSocket error: " + json.dumps(message))
                 raise ConnectionError("Kraken WebSocket closed; reconnecting")
-            except (websockets.ConnectionClosed, OSError, ConnectionError) as exc:
+            except (websockets.ConnectionClosed, OSError, ConnectionError, BookChecksumError) as exc:
                 ready.clear()
                 book["bids"].clear()
                 book["asks"].clear()
-                print(json.dumps({"event": "websocket_reconnect", "reason": str(exc)}), flush=True)
+                book["last_update_at"] = None
+                book["checksum"] = None
+                print(json.dumps({
+                    "event": "websocket_reconnect",
+                    "reason": str(exc),
+                    "book_invalidated": True,
+                }), flush=True)
                 await asyncio.sleep(2)
 
     task = asyncio.create_task(reader())
@@ -126,6 +178,8 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
                     "worst_bid_price": report["worst_bid_price"],
                     "best_ask_price": report["best_ask_price"],
                     "worst_ask_price": report["worst_ask_price"],
+                    "book_checksum": report["book_checksum"],
+                    "book_checksum_validated": report["book_checksum_validated"],
                 }
                 raw_file.write(json.dumps(record) + "\n")
                 raw_file.flush()
@@ -134,6 +188,7 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
                     "mid_price": record["mid_price"], "bid_levels": record["bid_level_count"],
                     "ask_levels": record["ask_level_count"],
                     "worst_bid_price": record["worst_bid_price"], "worst_ask_price": record["worst_ask_price"],
+                    "book_checksum_validated": record["book_checksum_validated"],
                 }), flush=True)
                 if i + 1 < snapshots:
                     await asyncio.sleep(interval_seconds)
