@@ -181,8 +181,9 @@ def main():
             "//// outside that side's captured bounds = not captured; .. inside captured bounds = no observed notional. "
             "Coverage describes price span, not liquidity density. Bars average observed bucket values across snapshots. "
             "Candidate zones are not confirmed support/resistance.")
-    fig.subplots_adjust(left=.08, right=.98, top=.93, bottom=.19)
-    fig.text(.01, .015, textwrap.fill(note, width=190), fontsize=8, ha="left", va="bottom")
+    # Reserve enough room for a readable, wrapped explanation below the axes.
+    fig.subplots_adjust(left=.08, right=.98, top=.93, bottom=.24)
+    fig.text(.01, .025, textwrap.fill(note, width=145), fontsize=8, ha="left", va="bottom")
     out = Path(a.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=160)
