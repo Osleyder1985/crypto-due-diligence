@@ -17,6 +17,8 @@ python -m orderbook.liquidity_report --symbol BTCUSDT --input-dir artifacts/orde
 ```
 
 A bounded capture for a smoke test is possible with `--max-events 100`; it still needs live network access to Binance. Outputs are append-only:
+
+A reproducible live smoke test is also available in GitHub Actions: open **Actions → Binance Spot order-book live smoke test → Run workflow** on the branch containing this workflow, select 100/250/500 events, and inspect the uploaded artifact. It uses public market-data endpoints only and requires no secrets. This workflow is manual (`workflow_dispatch`) to avoid making ordinary CI depend on external exchange availability. A successful run validates only a short live capture, not long-run reliability or predictive value. Outputs are append-only:
 - `<symbol>-depth-events.jsonl`: raw depth diffs with receipt time and exchange event/update IDs.
 - `<symbol>-trades.jsonl`: raw public trades, buyer-maker flag, and inferred aggressor side.
 - `<symbol>-book-metrics.jsonl`: descriptive metrics emitted only from locally reconstructed depth after synchronization.\n- `<symbol>-level-lifecycle.jsonl`: observed additions, quantity changes and removals of visible price levels, with first-observed time and elapsed visible lifetime.
