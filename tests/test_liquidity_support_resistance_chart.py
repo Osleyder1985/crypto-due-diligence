@@ -2,7 +2,8 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from orderbook.liquidity_support_resistance_chart import read_records
+
+from orderbook.liquidity_support_resistance_chart import read_records, _merge, _num
 
 
 class ChartInputTests(unittest.TestCase):
@@ -28,6 +29,17 @@ class ChartInputTests(unittest.TestCase):
             path.write_text("", encoding="utf-8")
             with self.assertRaises(ValueError):
                 read_records(path)
+
+    def test_merges_observed_intervals_but_preserves_internal_gaps(self):
+        self.assertEqual(_merge([(100, 200), (200, 300), (500, 600)]),
+                         [(100, 300), (500, 600)])
+
+    def test_reads_explicit_book_bounds_without_guessing(self):
+        record = {"best_bid_price": "100000", "worst_bid_price": "99000",
+                  "best_ask_price": "100100", "worst_ask_price": "101500"}
+        self.assertEqual(_num(record, "best_bid_price", "best_bid"), 100000.0)
+        self.assertEqual(_num(record, "worst_ask_price"), 101500.0)
+        self.assertIsNone(_num({"best_bid": "100000"}, "worst_bid_price"))
 
 
 if __name__ == "__main__":
