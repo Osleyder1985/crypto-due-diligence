@@ -12,12 +12,6 @@ on:
         type: choice
         options: ["60", "120", "300"]
         default: "120"
-      range_pct:
-        description: "Broad chart window on each side of latest mid-price"
-        required: true
-        type: choice
-        options: ["10", "20", "30"]
-        default: "20"
 
 permissions:
   contents: read
@@ -49,15 +43,10 @@ jobs:
       - name: Calculate persistent candidate zones
         run: |
           python -m orderbook.nearby_support_resistance --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --output-dir artifacts/orderbook-ws --max-distance-pct 30 --min-persistence-pct 60 --large-concentration-threshold-usd 1000000
-      - name: Generate broad-range support and resistance chart
-        env:
-          RANGE_PCT: ${{ inputs.range_pct || '20' }}
+      - name: Generate chart over actual captured book range
         run: |
-          python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --zones artifacts/orderbook-ws/kraken-nearby-support-resistance.json --output artifacts/orderbook-ws/btc-liquidity-support-resistance-ws.png --range-pct "$RANGE_PCT"
-      - name: Generate near-price detail chart (plus/minus 2 percent)
-        run: |
-          python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --zones artifacts/orderbook-ws/kraken-nearby-support-resistance.json --output artifacts/orderbook-ws/btc-liquidity-support-resistance-detail-ws.png --range-pct 2 --bucket-size 100
-      - name: Upload WebSocket snapshots, reports and charts
+          python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --zones artifacts/orderbook-ws/kraken-nearby-support-resistance.json --output artifacts/orderbook-ws/btc-liquidity-support-resistance-ws.png
+      - name: Upload WebSocket snapshots, reports and chart
         if: always()
         uses: actions/upload-artifact@v4
         with:
