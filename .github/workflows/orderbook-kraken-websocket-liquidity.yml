@@ -13,7 +13,7 @@ on:
         options: ["60", "120", "300"]
         default: "120"
       range_pct:
-        description: "Chart window on each side of latest mid-price"
+        description: "Broad chart window on each side of latest mid-price"
         required: true
         type: choice
         options: ["10", "20", "30"]
@@ -54,7 +54,10 @@ jobs:
           RANGE_PCT: ${{ inputs.range_pct || '20' }}
         run: |
           python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --zones artifacts/orderbook-ws/kraken-nearby-support-resistance.json --output artifacts/orderbook-ws/btc-liquidity-support-resistance-ws.png --range-pct "$RANGE_PCT"
-      - name: Upload WebSocket snapshots, reports and chart
+      - name: Generate near-price detail chart (plus/minus 2 percent)
+        run: |
+          python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --zones artifacts/orderbook-ws/kraken-nearby-support-resistance.json --output artifacts/orderbook-ws/btc-liquidity-support-resistance-detail-ws.png --range-pct 2 --bucket-size 100
+      - name: Upload WebSocket snapshots, reports and charts
         if: always()
         uses: actions/upload-artifact@v4
         with:
