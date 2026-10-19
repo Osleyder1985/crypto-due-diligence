@@ -68,7 +68,8 @@ jobs:
             --input artifacts/orderbook-persistence/kraken-xbtusd-snapshots.jsonl \
             --output-dir artifacts/orderbook-persistence \
             --max-distance-pct 20.0 \
-            --min-persistence-pct 80
+            --min-persistence-pct 80 \
+            --large-concentration-threshold-usd 1000000
       - name: Validate persistence and nearby-zone reports
         run: |
           python - <<'PY'
@@ -82,11 +83,16 @@ jobs:
           assert report["venue"] == "kraken_spot"
           assert nearby["snapshot_count"] == len(lines)
           assert float(nearby["reference_mid_price"]) > 0
+          assert nearby["notional_threshold_usd"] == "250000"
+          assert nearby["large_concentration_threshold_usd"] == "1000000"
+          assert nearby["zone_aggregation"].startswith("Aggregated USD notional per $100 price bucket and side")
+          assert all("large_concentration_persistence_pct" in zone and "liquidity_classification" in zone for zone in nearby["zones"])
           assert all(zone["status"] == "candidate_unconfirmed" for zone in nearby["zones"])
           print(json.dumps({
               "snapshot_count": report["snapshot_count"],
               "reference_mid_price": nearby["reference_mid_price"],
               "candidate_zone_count": len(nearby["zones"]),
+              "persistent_large_concentration_count": sum(zone["liquidity_classification"] == "persistent_large_concentration" for zone in nearby["zones"]),
               "nearby_report": str(root / "kraken-nearby-support-resistance.json"),
           }, indent=2))
           PY
