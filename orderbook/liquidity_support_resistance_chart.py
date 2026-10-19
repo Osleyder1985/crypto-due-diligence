@@ -28,6 +28,31 @@ def _num(record, *keys):
     return None
 
 
+
+def _captured_bounds(records):
+    """Return the union of actual BID/ASK bounds across all captured snapshots."""
+    bid_ranges = []
+    ask_ranges = []
+    for record in records:
+        bid_best = _num(record, "best_bid_price", "best_bid")
+        bid_worst = _num(record, "worst_bid_price")
+        ask_best = _num(record, "best_ask_price", "best_ask")
+        ask_worst = _num(record, "worst_ask_price")
+        if None in (bid_best, bid_worst, ask_best, ask_worst):
+            raise ValueError("every snapshot must include best and worst price bounds for both BID and ASK")
+        bid_ranges.append((min(bid_best, bid_worst), max(bid_best, bid_worst)))
+        ask_ranges.append((min(ask_best, ask_worst), max(ask_best, ask_worst)))
+    bid_low = min(bounds[0] for bounds in bid_ranges)
+    bid_high = max(bounds[1] for bounds in bid_ranges)
+    ask_low = min(bounds[0] for bounds in ask_ranges)
+    ask_high = max(bounds[1] for bounds in ask_ranges)
+    low = min(bid_low, ask_low)
+    high = max(bid_high, ask_high)
+    if not high > low:
+        raise ValueError("captured price range is empty or invalid")
+    return bid_low, bid_high, ask_low, ask_high, low, high
+
+
 def _merge(intervals):
     merged = []
     for start, end in sorted((a, b) for a, b in intervals if b > a):
@@ -58,19 +83,8 @@ def main():
     last = records[-1]
     mid = float(last["mid_price"])
 
-    # Bounds come from the latest captured book, never from a percentage around mid.
-    bid_best = _num(last, "best_bid_price", "best_bid")
-    bid_worst = _num(last, "worst_bid_price")
-    ask_best = _num(last, "best_ask_price", "best_ask")
-    ask_worst = _num(last, "worst_ask_price")
-    if None in (bid_best, bid_worst, ask_best, ask_worst):
-        raise ValueError("latest snapshot must include best and worst price bounds for both BID and ASK")
-
-    bid_low, bid_high = min(bid_best, bid_worst), max(bid_best, bid_worst)
-    ask_low, ask_high = min(ask_best, ask_worst), max(ask_best, ask_worst)
-    low, high = min(bid_low, ask_low), max(bid_high, ask_high)
-    if not high > low:
-        raise ValueError("captured price range is empty or invalid")
+    # Use the union of actual captured bounds across every snapshot, never a fixed percentage.
+    bid_low, bid_high, ask_low, ask_high, low, high = _captured_bounds(records)
 
     accum = {}
     observed_by_side = {"bid": set(), "ask": set()}
