@@ -7,7 +7,6 @@ from decimal import Decimal, ROUND_FLOOR
 import json
 from pathlib import Path
 
-import websockets
 from orderbook.kraken_snapshot_collector import build_report
 
 WS_URL = "wss://ws.kraken.com/v2"
@@ -56,6 +55,7 @@ def snapshot_report(book, pair="BTC/USD", top_n=20):
 
 
 async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
+    import websockets
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
     raw_path = root / "kraken-xbtusd-ws-snapshots.jsonl"

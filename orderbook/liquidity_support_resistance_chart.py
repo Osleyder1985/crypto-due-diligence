@@ -1,10 +1,6 @@
 """Plot BTC price and order-book liquidity profile over a configurable broad price window."""
 import argparse, json
 from pathlib import Path
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
 
 def read_records(path):
     raw=Path(path).read_text(encoding="utf-8").strip()
@@ -16,6 +12,10 @@ def read_records(path):
         return [json.loads(line) for line in raw.splitlines() if line.strip()]
 
 def main():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--input",required=True,help="JSON snapshot or JSONL repeated snapshots")
     p.add_argument("--zones",required=True,help="JSON report containing candidate zones")
