@@ -30,6 +30,34 @@ class LiquidityReportTests(unittest.TestCase):
         self.assertIn("not proof of cancellation", report["limitations"][0])
         self.assertIn("Interpretation limits", render_markdown(report))
 
+    def test_snapshot_liquidity_ranks_bid_and_ask_levels(self):
+        from orderbook.liquidity_report import summarize_snapshot_liquidity
+
+        depth = [{
+            "record_type": "snapshot",
+            "received_at": "2026-10-18T12:00:00Z",
+            "raw_snapshot": {
+                "limit": 1000,
+                "bids": [["99000", "1"], ["98900", "2"], ["98000", "5"]],
+                "asks": [["99100", "1"], ["99200", "3"], ["100100", "2"]],
+            },
+        }]
+        result = summarize_snapshot_liquidity(depth, Decimal("100"))
+        self.assertEqual(result["mid_price"], "99050")
+        self.assertEqual(result["bids"][0]["price"], "98000")
+        self.assertEqual(result["asks"][0]["price"], "99200")
+        bucket = next(row for row in result["price_buckets"] if row["price_bucket_start"] == "99000")
+        self.assertEqual(Decimal(bucket["bid_quote_notional"]), Decimal("99000"))
+        self.assertEqual(Decimal(bucket["ask_quote_notional"]), Decimal("99100"))
+
+    def test_snapshot_liquidity_empty_without_snapshot(self):
+        from orderbook.liquidity_report import summarize_snapshot_liquidity
+
+        result = summarize_snapshot_liquidity([], Decimal("100"))
+        self.assertIsNone(result["mid_price"])
+        self.assertEqual(result["bids"], [])
+        self.assertEqual(result["asks"], [])
+
     def test_invalid_bucket_is_rejected(self):
         with self.assertRaises(ValueError):
             summarize("BTCUSDT", [], [], Decimal("0"))
