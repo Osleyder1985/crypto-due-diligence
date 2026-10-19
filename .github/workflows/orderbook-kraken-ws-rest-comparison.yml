@@ -1,4 +1,4 @@
-name: Compare Kraken REST 500 and WebSocket v2 1000 depth
+name: Comparar profundidad Kraken REST 500 y WebSocket v2 1000
 
 on:
   push:
