@@ -28,6 +28,23 @@ class NearbyZonesTests(unittest.TestCase):
   self.assertEqual(r["min_persistence_pct"],"80")
   self.assertIn("99900", [z["price_low"] for z in r["zones"]])
   self.assertNotIn("99800", [z["price_low"] for z in r["zones"]])
+ def test_large_concentration_is_classified_in_parallel_by_aggregated_bucket_notional(self):
+  records=[
+   snap("t1",100000,[bucket(99900,bid="1200000"),bucket(99800,bid="500000")]),
+   snap("t2",100000,[bucket(99900,bid="1200000"),bucket(99800,bid="500000")]),
+   snap("t3",100000,[bucket(99900,bid="1200000"),bucket(99800,bid="500000")]),
+   snap("t4",100000,[bucket(99900,bid="1200000"),bucket(99800,bid="500000")]),
+   snap("t5",100000,[bucket(99900,bid="300000"),bucket(99800,bid="500000")]),
+  ]
+  r=build_nearby_report(records)
+  zones={z["price_low"]:z for z in r["zones"]}
+  self.assertEqual(r["notional_threshold_usd"],"250000")
+  self.assertEqual(r["large_concentration_threshold_usd"],"1000000")
+  self.assertEqual(zones["99900"]["persistence_pct"],100.0)
+  self.assertEqual(zones["99900"]["large_concentration_persistence_pct"],80.0)
+  self.assertEqual(zones["99900"]["liquidity_classification"],"persistent_large_concentration")
+  self.assertEqual(zones["99800"]["large_concentration_persistence_pct"],0.0)
+  self.assertEqual(zones["99800"]["liquidity_classification"],"significant_liquidity")
  def test_rejects_invalid_price_and_empty_input(self):
   with self.assertRaises(ValueError): build_nearby_report([snap("t",0,[])])
   with self.assertRaises(ValueError): build_nearby_report([])
