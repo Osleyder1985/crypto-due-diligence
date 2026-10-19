@@ -1,4 +1,5 @@
 import unittest
+from decimal import Decimal
 from orderbook.nearby_support_resistance import build_nearby_report
 def snap(ts, mid, buckets): return {"captured_at":ts,"venue":"kraken_spot","pair_returned":"XXBTZUSD","mid_price":str(mid),"price_buckets":buckets}
 def bucket(start,bid="0",ask="0"): return {"price_bucket_start":str(start),"price_bucket_end_exclusive":str(start+100),"bid_notional_usd":bid,"ask_notional_usd":ask}
@@ -45,6 +46,16 @@ class NearbyZonesTests(unittest.TestCase):
   self.assertEqual(zones["99900"]["liquidity_classification"],"persistent_large_concentration")
   self.assertEqual(zones["99800"]["large_concentration_persistence_pct"],0.0)
   self.assertEqual(zones["99800"]["liquidity_classification"],"significant_liquidity")
+ def test_ranking_rewards_larger_aggregated_notional(self):
+  r=build_nearby_report([
+   snap("t1",100000,[bucket(99900,bid="2000000"),bucket(99800,bid="20000000")]),
+   snap("t2",100000,[bucket(99900,bid="2000000"),bucket(99800,bid="20000000")]),
+   snap("t3",100000,[bucket(99900,bid="2000000"),bucket(99800,bid="20000000")]),
+   snap("t4",100000,[bucket(99900,bid="2000000"),bucket(99800,bid="20000000")]),
+   snap("t5",100000,[bucket(99900,bid="2000000"),bucket(99800,bid="20000000")]),
+  ])
+  zones={z["price_low"]:z for z in r["zones"]}
+  self.assertGreater(Decimal(zones["99800"]["descriptive_score_0_100"]),Decimal(zones["99900"]["descriptive_score_0_100"]))
  def test_rejects_invalid_price_and_empty_input(self):
   with self.assertRaises(ValueError): build_nearby_report([snap("t",0,[])])
   with self.assertRaises(ValueError): build_nearby_report([])
