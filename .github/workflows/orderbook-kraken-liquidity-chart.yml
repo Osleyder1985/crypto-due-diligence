@@ -2,13 +2,17 @@ name: Kraken Spot liquidity profile chart
 
 on:
   workflow_dispatch:
-    inputs:
-      range_pct:
-        description: "Price window on each side of the latest mid-price"
-        required: true
-        type: choice
-        options: ["10", "20", "30"]
-        default: "20"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/orderbook-kraken-liquidity-chart.yml"
+      - "orderbook/liquidity_support_resistance_chart.py"
+      - "orderbook/persistence_monitor.py"
+      - "orderbook/nearby_support_resistance.py"
+      - "orderbook/kraken_snapshot_collector.py"
+      - "tests/test_liquidity_support_resistance_chart.py"
+      - "tests/test_orderbook_persistence.py"
+      - "tests/test_orderbook_nearby_support_resistance.py"
 
 permissions:
   contents: read
@@ -35,11 +39,9 @@ jobs:
       - name: Calculate candidate support and resistance zones
         run: |
           python -m orderbook.nearby_support_resistance --input artifacts/orderbook-persistence/kraken-xbtusd-snapshots.jsonl --output-dir artifacts/orderbook-persistence --max-distance-pct 20 --min-persistence-pct 80 --large-concentration-threshold-usd 1000000
-      - name: Generate broad-range liquidity chart
-        env:
-          RANGE_PCT: ${{ inputs.range_pct }}
+      - name: Generate chart over actual captured book range
         run: |
-          python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-persistence/kraken-xbtusd-snapshots.jsonl --zones artifacts/orderbook-persistence/kraken-nearby-support-resistance.json --output artifacts/orderbook-persistence/btc-liquidity-support-resistance.png --range-pct "$RANGE_PCT"
+          python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-persistence/kraken-xbtusd-snapshots.jsonl --zones artifacts/orderbook-persistence/kraken-nearby-support-resistance.json --output artifacts/orderbook-persistence/btc-liquidity-support-resistance.png
       - name: Upload data, reports and chart
         if: always()
         uses: actions/upload-artifact@v4

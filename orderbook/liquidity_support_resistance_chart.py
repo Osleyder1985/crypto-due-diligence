@@ -28,6 +28,31 @@ def _num(record, *keys):
     return None
 
 
+
+def _captured_bounds(records):
+    """Return the union of actual BID/ASK bounds across all captured snapshots."""
+    bid_ranges = []
+    ask_ranges = []
+    for record in records:
+        bid_best = _num(record, "best_bid_price", "best_bid")
+        bid_worst = _num(record, "worst_bid_price")
+        ask_best = _num(record, "best_ask_price", "best_ask")
+        ask_worst = _num(record, "worst_ask_price")
+        if None in (bid_best, bid_worst, ask_best, ask_worst):
+            raise ValueError("every snapshot must include best and worst price bounds for both BID and ASK")
+        bid_ranges.append((min(bid_best, bid_worst), max(bid_best, bid_worst)))
+        ask_ranges.append((min(ask_best, ask_worst), max(ask_best, ask_worst)))
+    bid_low = min(bounds[0] for bounds in bid_ranges)
+    bid_high = max(bounds[1] for bounds in bid_ranges)
+    ask_low = min(bounds[0] for bounds in ask_ranges)
+    ask_high = max(bounds[1] for bounds in ask_ranges)
+    low = min(bid_low, ask_low)
+    high = max(bid_high, ask_high)
+    if not high > low:
+        raise ValueError("captured price range is empty or invalid")
+    return bid_low, bid_high, ask_low, ask_high, low, high
+
+
 def _merge(intervals):
     merged = []
     for start, end in sorted((a, b) for a, b in intervals if b > a):
@@ -57,20 +82,13 @@ def main():
     records = read_records(a.input)
     last = records[-1]
     mid = float(last["mid_price"])
+    latest_best_bid = _num(last, "best_bid_price", "best_bid")
+    latest_worst_bid = _num(last, "worst_bid_price")
+    latest_best_ask = _num(last, "best_ask_price", "best_ask")
+    latest_worst_ask = _num(last, "worst_ask_price")
 
-    # Bounds come from the latest captured book, never from a percentage around mid.
-    bid_best = _num(last, "best_bid_price", "best_bid")
-    bid_worst = _num(last, "worst_bid_price")
-    ask_best = _num(last, "best_ask_price", "best_ask")
-    ask_worst = _num(last, "worst_ask_price")
-    if None in (bid_best, bid_worst, ask_best, ask_worst):
-        raise ValueError("latest snapshot must include best and worst price bounds for both BID and ASK")
-
-    bid_low, bid_high = min(bid_best, bid_worst), max(bid_best, bid_worst)
-    ask_low, ask_high = min(ask_best, ask_worst), max(ask_best, ask_worst)
-    low, high = min(bid_low, ask_low), max(bid_high, ask_high)
-    if not high > low:
-        raise ValueError("captured price range is empty or invalid")
+    # Use the union of actual captured bounds across every snapshot, never a fixed percentage.
+    bid_low, bid_high, ask_low, ask_high, low, high = _captured_bounds(records)
 
     accum = {}
     observed_by_side = {"bid": set(), "ask": set()}
@@ -163,20 +181,21 @@ def main():
             "//// outside that side's captured bounds = not captured; .. inside captured bounds = no observed notional. "
             "Coverage describes price span, not liquidity density. Bars average observed bucket values across snapshots. "
             "Candidate zones are not confirmed support/resistance.")
-    fig.subplots_adjust(left=.08, right=.98, top=.93, bottom=.19)
-    fig.text(.01, .015, textwrap.fill(note, width=190), fontsize=8, ha="left", va="bottom")
+    # Reserve enough room for a readable, wrapped explanation below the axes.
+    fig.subplots_adjust(left=.08, right=.98, top=.93, bottom=.24)
+    fig.text(.01, .025, textwrap.fill(note, width=145), fontsize=8, ha="left", va="bottom")
     out = Path(a.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=160)
     plt.close(fig)
     print(json.dumps({
         "chart": str(out), "reference_mid_price": mid, "window_low": low, "window_high": high,
-        "latest_best_bid": bid_best, "latest_worst_bid": bid_worst,
-        "latest_best_ask": ask_best, "latest_worst_ask": ask_worst,
+        "latest_best_bid": latest_best_bid, "latest_worst_bid": latest_worst_bid,
+        "latest_best_ask": latest_best_ask, "latest_worst_ask": latest_worst_ask,
         "bid_coverage_pct": round(bid_coverage, 2), "ask_coverage_pct": round(ask_coverage, 2),
         "bucket_count": len(prices), "candidate_zones_in_window": len(zones),
         "candidate_zones_labeled": len(labeled), "bytes": out.stat().st_size,
-        "coverage_semantics": "automatic latest-book outer bounds; hatched outside side bounds, dotted internal buckets with no observed notional"
+        "coverage_semantics": "union of captured snapshot bounds; hatched outside side bounds, dotted internal buckets with no observed notional"
     }, indent=2))
 
 
