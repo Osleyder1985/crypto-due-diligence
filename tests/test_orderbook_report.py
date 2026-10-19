@@ -48,7 +48,8 @@ class LiquidityReportTests(unittest.TestCase):
         self.assertEqual(result["asks"][0]["price"], "99200")
         bucket = next(row for row in result["price_buckets"] if row["price_bucket_start"] == "99000")
         self.assertEqual(Decimal(bucket["bid_quote_notional"]), Decimal("99000"))
-        self.assertEqual(Decimal(bucket["ask_quote_notional"]), Decimal("99100"))
+        ask_bucket = next(row for row in result["price_buckets"] if row["price_bucket_start"] == "99100")
+        self.assertEqual(Decimal(ask_bucket["ask_quote_notional"]), Decimal("99100"))
 
     def test_snapshot_liquidity_empty_without_snapshot(self):
         from orderbook.liquidity_report import summarize_snapshot_liquidity
