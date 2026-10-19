@@ -28,15 +28,16 @@ def summarize_snapshot_liquidity(depth_records, price_bucket=Decimal("100"), top
     """Rank visible price concentrations from the latest captured REST snapshot."""
     if price_bucket <= 0:
         raise ValueError("price_bucket must be positive")
-    snapshots = [row for row in depth_records if row.get("record_type") == "snapshot" and isinstance(row.get("raw_snapshot"), dict)]
+    snapshots = [row for row in depth_records if row.get("record_type") in {"snapshot", "reconstructed_book"} and isinstance(row.get("raw_snapshot"), dict)]
     if not snapshots:
-        return {"snapshot_at": None, "mid_price": None, "bids": [], "asks": [], "price_buckets": []}
-    snapshot = snapshots[-1]
+        return {"snapshot_at": None, "source_record_type": None, "mid_price": None, "bids": [], "asks": [], "price_buckets": []}
+    reconstructed = [row for row in snapshots if row.get("record_type") == "reconstructed_book"]
+    snapshot = reconstructed[-1] if reconstructed else snapshots[-1]
     raw = snapshot["raw_snapshot"]
     bids = [(Decimal(str(p)), Decimal(str(q))) for p, q in raw.get("bids", []) if Decimal(str(p)) > 0 and Decimal(str(q)) > 0]
     asks = [(Decimal(str(p)), Decimal(str(q))) for p, q in raw.get("asks", []) if Decimal(str(p)) > 0 and Decimal(str(q)) > 0]
     if not bids or not asks:
-        return {"snapshot_at": snapshot.get("received_at"), "mid_price": None, "bids": [], "asks": [], "price_buckets": []}
+        return {"snapshot_at": snapshot.get("received_at"), "source_record_type": snapshot.get("record_type"), "mid_price": None, "bids": [], "asks": [], "price_buckets": []}
     best_bid, best_ask = max(p for p, _ in bids), min(p for p, _ in asks)
     mid = (best_bid + best_ask) / Decimal(2)
     grouped = {side: defaultdict(lambda: {"base_quantity": Decimal(0), "quote_notional": Decimal(0), "levels": 0}) for side in ("bid", "ask")}
@@ -59,7 +60,7 @@ def summarize_snapshot_liquidity(depth_records, price_bucket=Decimal("100"), top
             item[f"{side}_quote_notional"] = str(value.get("quote_notional", Decimal(0)))
             item[f"{side}_level_count"] = value.get("levels", 0)
         buckets.append(item)
-    return {"snapshot_at": snapshot.get("received_at"), "mid_price": str(mid), "best_bid": str(best_bid), "best_ask": str(best_ask), "snapshot_limit": raw.get("limit"),
+    return {"snapshot_at": snapshot.get("received_at"), "source_record_type": snapshot.get("record_type"), "mid_price": str(mid), "best_bid": str(best_bid), "best_ask": str(best_ask), "snapshot_limit": raw.get("limit"),
             "bids": sorted(ranked["bid"], key=lambda x: Decimal(x["quote_notional"]), reverse=True)[:top_n],
             "asks": sorted(ranked["ask"], key=lambda x: Decimal(x["quote_notional"]), reverse=True)[:top_n],
             "price_buckets": sorted(buckets, key=lambda x: Decimal(x["bid_quote_notional"]) + Decimal(x["ask_quote_notional"]), reverse=True)}
@@ -156,7 +157,7 @@ def summarize(symbol, lifecycle_records, metric_records, price_bucket=Decimal("1
         "limitations": [
             "A removed visible level is not proof of cancellation, execution, spoofing, or intent.",
             "Lifetime measures continuous observed price-level presence, not individual-order age.",
-            "Snapshot concentration is a point-in-time REST snapshot, not a reconstructed live book; later updates are not reflected in this concentration map.",
+            "The concentration map uses the latest persisted reconstructed book when available; otherwise it falls back to the initial REST snapshot.",
             "Snapshot depth is limited by the REST request limit; levels outside captured depth are not included.",
             "Only captured records are summarized; reconnects, process restarts, and capture gaps limit interpretation.",
             "Descriptive summaries are not investment advice or a validated predictive signal.",
@@ -195,7 +196,7 @@ def render_markdown(report):
     else:
         lines.append("No valid book-metric samples were found.")
     snapshot_map = report.get("snapshot_liquidity_map", {})
-    lines.extend(["", "## Snapshot price concentrations", "", "Visible levels from the latest captured REST snapshot, ranked by quote notional; this is not a live reconstructed book.", ""])
+    lines.extend(["", "## Snapshot price concentrations", "", "Visible levels from the latest persisted book state, ranked by quote notional; falls back to the initial REST snapshot if capture ended before synchronization.", ""])
     if snapshot_map.get("mid_price") is not None:
         lines.extend([f"- Snapshot time: {snapshot_map.get('snapshot_at') or 'unknown'}", f"- Snapshot mid price: {snapshot_map['mid_price']}", "", "| Side | Price | BTC quantity | Quote notional | Distance from mid (%) |", "|---|---:|---:|---:|---:|"])
         for side in ("bids", "asks"):
