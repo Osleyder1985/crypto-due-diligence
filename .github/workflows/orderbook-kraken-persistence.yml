@@ -67,7 +67,7 @@ jobs:
           python -m orderbook.nearby_support_resistance \
             --input artifacts/orderbook-persistence/kraken-xbtusd-snapshots.jsonl \
             --output-dir artifacts/orderbook-persistence \
-            --max-distance-pct 2.0 \
+            --max-distance-pct 20.0 \
             --min-persistence-pct 50
       - name: Validate persistence and nearby-zone reports
         run: |
