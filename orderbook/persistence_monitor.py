@@ -31,7 +31,7 @@ def summarize_snapshots(reports, min_notional_usd=Decimal("250000")):
                 key = (side, str(start))
                 stats = bucket_stats.setdefault(key, {
                     "side": side, "bucket_start": str(start),
-                    "bucket_end_exclusive": str(start + Decimal("100")),
+                    "bucket_end_exclusive": str(Decimal(bucket.get("price_bucket_end_exclusive", str(start + Decimal("100"))))),
                     "observations_present": 0, "observations_above_threshold": 0,
                     "notional_sum_usd": Decimal(0), "notional_max_usd": Decimal(0),
                 })
