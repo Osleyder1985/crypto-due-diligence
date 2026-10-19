@@ -1,0 +1,90 @@
+name: Kraken Spot liquidity persistence monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      snapshots:
+        description: "Number of snapshots to collect (2-20 recommended)"
+        required: true
+        type: choice
+        options:
+          - "10"
+          - "20"
+        default: "20"
+      interval_seconds:
+        description: "Seconds between snapshots"
+        required: true
+        type: choice
+        options:
+          - "15"
+          - "30"
+          - "60"
+        default: "30"
+      count:
+        description: "Visible levels per side"
+        required: true
+        type: choice
+        options:
+          - "100"
+          - "250"
+          - "500"
+        default: "500"
+
+permissions:
+  contents: read
+
+jobs:
+  persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test persistence calculations
+        run: python -m unittest discover -s tests -p 'test_orderbook_persistence.py' -v
+      - name: Capture repeated Kraken books and summarize persistence
+        env:
+          SNAPSHOT_COUNT: ${{ inputs.snapshots }}
+          INTERVAL_SECONDS: ${{ inputs.interval_seconds }}
+          BOOK_COUNT: ${{ inputs.count }}
+        run: |
+          set -euo pipefail
+          python -m orderbook.persistence_monitor \
+            --pair XBTUSD \
+            --count "$BOOK_COUNT" \
+            --snapshots "$SNAPSHOT_COUNT" \
+            --interval-seconds "$INTERVAL_SECONDS" \
+            --price-bucket 100 \
+            --top-n 20 \
+            --min-bucket-notional-usd 250000 \
+            --output-dir artifacts/orderbook-persistence
+      - name: Validate persistence report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("artifacts/orderbook-persistence")
+          report = json.loads((root / "kraken-liquidity-persistence.json").read_text())
+          lines = (root / "kraken-xbtusd-snapshots.jsonl").read_text().splitlines()
+          assert report["snapshot_count"] == len(lines)
+          assert report["snapshot_count"] >= 2
+          assert report["persistent_buckets"]
+          assert report["venue"] == "kraken_spot"
+          print(json.dumps({
+              "snapshot_count": report["snapshot_count"],
+              "first_snapshot_at": report["first_snapshot_at"],
+              "last_snapshot_at": report["last_snapshot_at"],
+              "persistent_buckets": len(report["persistent_buckets"]),
+              "repeated_top_levels": len(report["repeated_top_levels"]),
+          }, indent=2))
+          PY
+      - name: Upload raw samples and persistence reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kraken-xbtusd-persistence-${{ github.run_id }}
+          path: artifacts/orderbook-persistence/
+          if-no-files-found: warn
+          retention-days: 14
