@@ -1,9 +1,8 @@
-"""Collect a maintained Kraken Spot v2 WebSocket L2 book (up to 1000 levels/side)."""
+"""Collect a maintained Kraken Spot v2 L2 book (up to 1000 levels/side)."""
 import argparse
 import asyncio
-from collections import defaultdict
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_FLOOR
+from decimal import Decimal
 import json
 from pathlib import Path
 
@@ -25,16 +24,13 @@ def apply_book_message(book, message):
         book["bids"].clear()
         book["asks"].clear()
     for side in ("bids", "asks"):
-        rows = item.get(side, [])
-        for row in rows:
+        for row in item.get(side, []):
             price = str(Decimal(str(row["price"])))
             qty = Decimal(str(row["qty"]))
             if qty <= 0:
                 book[side].pop(price, None)
             else:
                 book[side][price] = qty
-    # Kraken sends updates that can add levels beyond the initial subscription depth.
-    # Keep only the best 1000 levels on each side so reports honor the requested depth.
     book["bids"] = dict(sorted(book["bids"].items(), key=lambda row: Decimal(row[0]), reverse=True)[:1000])
     book["asks"] = dict(sorted(book["asks"].items(), key=lambda row: Decimal(row[0]))[:1000])
     book["last_update_at"] = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -54,6 +50,12 @@ def snapshot_report(book, pair="BTC/USD", top_n=20):
     report["book_depth_requested_per_side"] = 1000
     report["bid_level_count"] = len(bids)
     report["ask_level_count"] = len(asks)
+    # These are the actual outer limits of the currently maintained book, not
+    # the min/max of buckets that happen to contain notional.
+    report["best_bid_price"] = str(max(Decimal(row[0]) for row in bids))
+    report["worst_bid_price"] = str(min(Decimal(row[0]) for row in bids))
+    report["best_ask_price"] = str(min(Decimal(row[0]) for row in asks))
+    report["worst_ask_price"] = str(max(Decimal(row[0]) for row in asks))
     report["scope"] = "Maintained Kraken Spot WebSocket v2 L2 book; up to 1000 price levels per side, aggregated public liquidity only."
     return report
 
@@ -67,8 +69,6 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
     ready = asyncio.Event()
 
     async def reader():
-        # Kraken or the network may reset a long-lived connection. Reconnect and
-        # wait for a fresh snapshot before allowing the sampler to use the book.
         while True:
             try:
                 async with websockets.connect(
@@ -77,10 +77,7 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
                 ) as ws:
                     await ws.send(json.dumps({
                         "method": "subscribe",
-                        "params": {
-                            "channel": "book", "symbol": [pair],
-                            "depth": 1000, "snapshot": True
-                        },
+                        "params": {"channel": "book", "symbol": [pair], "depth": 1000, "snapshot": True},
                         "req_id": 1,
                     }))
                     async for raw in ws:
@@ -92,7 +89,6 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
                             raise RuntimeError("Kraken WebSocket subscription rejected: " + json.dumps(message))
                         elif message.get("success") is False:
                             raise RuntimeError("Kraken WebSocket error: " + json.dumps(message))
-                # A normal close also requires a fresh connection and snapshot.
                 raise ConnectionError("Kraken WebSocket closed; reconnecting")
             except (websockets.ConnectionClosed, OSError, ConnectionError) as exc:
                 ready.clear()
@@ -105,8 +101,6 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
     try:
         with raw_path.open("w", encoding="utf-8") as raw_file:
             for i in range(snapshots):
-                # Do not count stale book data during a disconnect; resume only
-                # after the new connection has supplied a full snapshot.
                 while not ready.is_set():
                     if task.done():
                         task.result()
@@ -128,15 +122,18 @@ async def collect(pair, snapshots, interval_seconds, output_dir, top_n=20):
                     "book_depth_requested_per_side": 1000,
                     "bid_level_count": report["bid_level_count"],
                     "ask_level_count": report["ask_level_count"],
+                    "best_bid_price": report["best_bid_price"],
+                    "worst_bid_price": report["worst_bid_price"],
+                    "best_ask_price": report["best_ask_price"],
+                    "worst_ask_price": report["worst_ask_price"],
                 }
                 raw_file.write(json.dumps(record) + "\n")
                 raw_file.flush()
                 print(json.dumps({
-                    "sample": i + 1, "total": snapshots,
-                    "captured_at": record["captured_at"],
-                    "mid_price": record["mid_price"],
-                    "bid_levels": record["bid_level_count"],
+                    "sample": i + 1, "total": snapshots, "captured_at": record["captured_at"],
+                    "mid_price": record["mid_price"], "bid_levels": record["bid_level_count"],
                     "ask_levels": record["ask_level_count"],
+                    "worst_bid_price": record["worst_bid_price"], "worst_ask_price": record["worst_ask_price"],
                 }), flush=True)
                 if i + 1 < snapshots:
                     await asyncio.sleep(interval_seconds)
