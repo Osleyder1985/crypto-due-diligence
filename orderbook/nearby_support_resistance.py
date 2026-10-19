@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
-def build_nearby_report(records, max_distance_pct=Decimal("20"), min_persistence_pct=Decimal("50")):
+def build_nearby_report(records, max_distance_pct=Decimal("20"), min_persistence_pct=Decimal("80")):
     if not records: raise ValueError("at least one snapshot record is required")
     max_distance_pct, min_persistence_pct = Decimal(str(max_distance_pct)), Decimal(str(min_persistence_pct))
     if not 0 < max_distance_pct <= 50: raise ValueError("max distance percentage must be > 0 and <= 50")
@@ -43,7 +43,7 @@ def main():
     p.add_argument("--input",default="artifacts/orderbook-persistence/kraken-xbtusd-snapshots.jsonl")
     p.add_argument("--output-dir",default="artifacts/orderbook-persistence")
     p.add_argument("--max-distance-pct",type=Decimal,default=Decimal("20"))
-    p.add_argument("--min-persistence-pct",type=Decimal,default=Decimal("50"))
+    p.add_argument("--min-persistence-pct",type=Decimal,default=Decimal("80"))
     a=p.parse_args()
     records=[json.loads(x) for x in Path(a.input).read_text(encoding="utf-8").splitlines() if x.strip()]
     r=build_nearby_report(records,a.max_distance_pct,a.min_persistence_pct); root=Path(a.output_dir); root.mkdir(parents=True,exist_ok=True)
