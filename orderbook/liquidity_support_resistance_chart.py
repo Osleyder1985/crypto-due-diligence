@@ -2,6 +2,7 @@
 import argparse
 import json
 import math
+import textwrap
 from pathlib import Path
 
 
@@ -120,7 +121,9 @@ def main():
     zones.sort(key=lambda item: float(item[0].get("max_visible_notional_usd", 0)), reverse=True)
     labeled = zones[:a.max_zone_labels]
 
-    fig, ax = plt.subplots(figsize=(14, 9), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(14, 9), constrained_layout=False)
+    # Reserve dedicated space for the x-axis label and multi-line coverage note;
+    # constrained_layout can otherwise let the long note collide with the label.
     if prices:
         ax.barh([x + a.bucket_size / 2 for x in prices], bids, height=a.bucket_size * .72,
                 label="Buy bids (observed)", color="#238b57", alpha=.8)
@@ -188,7 +191,8 @@ def main():
         "Coverage is based on latest book bounds; liquidity bars are bucket averages across snapshots. "
         "Candidate zones are not confirmed support/resistance."
     )
-    fig.text(.01, .005, coverage_text, fontsize=8, ha="left")
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.93, bottom=0.19)
+    fig.text(.01, .015, textwrap.fill(coverage_text, width=190), fontsize=8, ha="left", va="bottom")
     out = Path(a.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=160)
