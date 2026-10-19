@@ -209,8 +209,8 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                     if not synchronized:
                         if event.get("u", 0) <= last_update_id:
                             continue
-                        buffer.append(event)
-                        first = buffer[0]
+                        buffer.append((event, received_at))
+                        first = buffer[0][0]
                         if first.get("U", 0) <= last_update_id + 1 <= first.get("u", 0):
                             synchronized = True
                         elif first.get("U", 0) > last_update_id + 1:
@@ -225,9 +225,9 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                         if event.get("U", 0) > last_update_id + 1:
                             LOG.warning("Depth sequence gap; reconnecting for a new snapshot")
                             break
-                        buffer.append(event)
+                        buffer.append((event, received_at))
                     while buffer:
-                        current = buffer.pop(0)
+                        current, current_received_at = buffer.pop(0)
                         if current.get("u", 0) <= last_update_id:
                             continue
                         if current.get("U", 0) > last_update_id + 1 or current.get("u", 0) < last_update_id + 1:
@@ -235,7 +235,7 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                             synchronized = False
                             break
                         apply_depth_event(bids, asks, current)
-                        for lifecycle_record in lifecycle.apply_event(current, received_at):
+                        for lifecycle_record in lifecycle.apply_event(current, current_received_at):
                             lifecycle_out.write({
                                 "schema_version": "1.0", "venue": "binance_spot", "symbol": symbol,
                                 "first_update_id": current.get("U"), "final_update_id": current.get("u"),
@@ -244,7 +244,7 @@ async def collect(symbol="BTCUSDT", output_dir="artifacts/orderbook", snapshot_l
                         last_update_id = current["u"]
                         metrics_out.write({
                             "schema_version": "1.0", "venue": "binance_spot", "symbol": symbol,
-                            "received_at": received_at, "event_time_ms": current.get("E"),
+                            "received_at": current_received_at, "event_time_ms": current.get("E"),
                             "last_update_id": last_update_id,
                             "metrics": calculate_metrics(bids, asks, depth_band_pct, trade_size_quote),
                         })
