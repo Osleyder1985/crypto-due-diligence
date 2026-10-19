@@ -82,6 +82,10 @@ def main():
     records = read_records(a.input)
     last = records[-1]
     mid = float(last["mid_price"])
+    latest_best_bid = _num(last, "best_bid_price", "best_bid")
+    latest_worst_bid = _num(last, "worst_bid_price")
+    latest_best_ask = _num(last, "best_ask_price", "best_ask")
+    latest_worst_ask = _num(last, "worst_ask_price")
 
     # Use the union of actual captured bounds across every snapshot, never a fixed percentage.
     bid_low, bid_high, ask_low, ask_high, low, high = _captured_bounds(records)
@@ -185,12 +189,12 @@ def main():
     plt.close(fig)
     print(json.dumps({
         "chart": str(out), "reference_mid_price": mid, "window_low": low, "window_high": high,
-        "latest_best_bid": bid_best, "latest_worst_bid": bid_worst,
-        "latest_best_ask": ask_best, "latest_worst_ask": ask_worst,
+        "latest_best_bid": latest_best_bid, "latest_worst_bid": latest_worst_bid,
+        "latest_best_ask": latest_best_ask, "latest_worst_ask": latest_worst_ask,
         "bid_coverage_pct": round(bid_coverage, 2), "ask_coverage_pct": round(ask_coverage, 2),
         "bucket_count": len(prices), "candidate_zones_in_window": len(zones),
         "candidate_zones_labeled": len(labeled), "bytes": out.stat().st_size,
-        "coverage_semantics": "automatic latest-book outer bounds; hatched outside side bounds, dotted internal buckets with no observed notional"
+        "coverage_semantics": "union of captured snapshot bounds; hatched outside side bounds, dotted internal buckets with no observed notional"
     }, indent=2))
 
 
