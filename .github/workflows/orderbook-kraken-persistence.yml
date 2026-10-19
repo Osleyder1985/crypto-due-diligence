@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Test persistence calculations
-        run: python -m unittest tests.test_orderbook_persistence -v
+        run: python -m unittest discover -s tests -p 'test_orderbook_persistence.py' -v
       - name: Capture repeated Kraken books and summarize persistence
         env:
           SNAPSHOT_COUNT: ${{ inputs.snapshots }}
