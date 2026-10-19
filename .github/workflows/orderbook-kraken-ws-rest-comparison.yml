@@ -1,0 +1,70 @@
+name: Comparar profundidad Kraken REST 500 y WebSocket v2 1000
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/orderbook-kraken-ws-rest-comparison.yml"
+      - "orderbook/compare_kraken_ws_rest_depth.py"
+      - "orderbook/kraken_websocket_collector.py"
+      - "orderbook/persistence_monitor.py"
+      - "orderbook/kraken_snapshot_collector.py"
+      - "tests/test_compare_kraken_ws_rest_depth.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare-live-order-books:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install order-book and chart dependencies
+        run: |
+          python -m pip install -r requirements-orderbook.txt
+          python -m pip install matplotlib
+      - name: Test comparison metrics
+        run: |
+          python -m unittest discover -s tests -p "test_compare_kraken_ws_rest_depth.py" -v
+          python -m unittest discover -s tests -p "test_orderbook_kraken_websocket.py" -v
+      - name: Capture REST depth 500 and WebSocket depth 1000 concurrently
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/orderbook-rest artifacts/orderbook-ws artifacts/orderbook-comparison
+          python -m orderbook.persistence_monitor --pair XBTUSD --count 500 --snapshots 20 --interval-seconds 15 --price-bucket 100 --top-n 20 --min-bucket-notional-usd 250000 --output-dir artifacts/orderbook-rest > artifacts/orderbook-rest/capture.log 2>&1 &
+          REST_PID=$!
+          python -m orderbook.kraken_websocket_collector --pair BTC/USD --snapshots 60 --interval-seconds 5 --output-dir artifacts/orderbook-ws > artifacts/orderbook-ws/capture.log 2>&1 &
+          WS_PID=$!
+          REST_STATUS=0
+          WS_STATUS=0
+          wait "$REST_PID" || REST_STATUS=$?
+          wait "$WS_PID" || WS_STATUS=$?
+          cat artifacts/orderbook-rest/capture.log
+          cat artifacts/orderbook-ws/capture.log
+          test "$REST_STATUS" -eq 0
+          test "$WS_STATUS" -eq 0
+      - name: Compare observed depth and overlapping capture windows
+        run: |
+          python -m orderbook.compare_kraken_ws_rest_depth --rest artifacts/orderbook-rest/kraken-xbtusd-snapshots.jsonl --websocket artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --output-dir artifacts/orderbook-comparison
+      - name: Analyze observed support and resistance zones
+        run: |
+          python -m orderbook.nearby_support_resistance --input artifacts/orderbook-rest/kraken-xbtusd-snapshots.jsonl --output-dir artifacts/orderbook-rest --max-distance-pct 30 --min-persistence-pct 60 --large-concentration-threshold-usd 1000000
+          python -m orderbook.nearby_support_resistance --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --output-dir artifacts/orderbook-ws --max-distance-pct 30 --min-persistence-pct 60 --large-concentration-threshold-usd 1000000
+      - name: Generate charts from each actual captured range
+        run: |
+          python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-rest/kraken-xbtusd-snapshots.jsonl --zones artifacts/orderbook-rest/kraken-nearby-support-resistance.json --output artifacts/orderbook-rest/btc-liquidity-support-resistance-rest.png
+          python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --zones artifacts/orderbook-ws/kraken-nearby-support-resistance.json --output artifacts/orderbook-ws/btc-liquidity-support-resistance-ws.png
+      - name: Upload raw captures, diagnostics, comparison and charts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kraken-ws-rest-depth-comparison-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
