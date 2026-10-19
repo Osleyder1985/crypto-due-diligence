@@ -61,7 +61,7 @@ class ChartInputTests(unittest.TestCase):
                 ],
             }
             snapshots_path = root / "snapshots.jsonl"
-            snapshots_path.write_text(json.dumps(snapshot) + "\\n", encoding="utf-8")
+            snapshots_path.write_text(json.dumps(snapshot) + "\n", encoding="utf-8")
             zones_path = root / "zones.json"
             zones_path.write_text(json.dumps({"zones": [
                 {"type": "candidate_support", "price_low": 99000,
