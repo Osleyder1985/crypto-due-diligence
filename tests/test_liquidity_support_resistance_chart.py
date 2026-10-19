@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orderbook.liquidity_support_resistance_chart import read_records, _merge, _num, main
+from orderbook.liquidity_support_resistance_chart import read_records, _merge, _num, _captured_bounds, main
 
 
 class ChartInputTests(unittest.TestCase):
@@ -41,6 +41,17 @@ class ChartInputTests(unittest.TestCase):
         self.assertEqual(_num(record, "best_bid_price", "best_bid"), 100000.0)
         self.assertEqual(_num(record, "worst_ask_price"), 101500.0)
         self.assertIsNone(_num({"best_bid": "100000"}, "worst_bid_price"))
+
+    def test_captured_bounds_union_all_snapshots_not_only_last(self):
+        records = [
+            {"best_bid_price": "100000", "worst_bid_price": "97000",
+             "best_ask_price": "100100", "worst_ask_price": "104000"},
+            {"best_bid_price": "101000", "worst_bid_price": "99500",
+             "best_ask_price": "101100", "worst_ask_price": "102000"},
+        ]
+        self.assertEqual(_captured_bounds(records), (97000.0, 101000.0,
+                                                       100100.0, 104000.0,
+                                                       97000.0, 104000.0))
 
     def test_generates_png_from_captured_range_and_candidate_zones(self):
         with tempfile.TemporaryDirectory() as d:
