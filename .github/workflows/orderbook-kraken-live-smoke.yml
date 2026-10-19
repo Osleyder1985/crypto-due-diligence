@@ -1,0 +1,66 @@
+name: Kraken Spot order-book live smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "Number of visible levels per side (maximum 500)"
+        required: true
+        type: choice
+        options:
+          - "100"
+          - "250"
+          - "500"
+        default: "500"
+
+permissions:
+  contents: read
+
+jobs:
+  live-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Capture public Kraken Spot XBT/USD book
+        env:
+          BOOK_COUNT: ${{ inputs.count }}
+        run: |
+          set -euo pipefail
+          python -m orderbook.kraken_snapshot_collector \
+            --pair XBTUSD \
+            --count "$BOOK_COUNT" \
+            --output-dir artifacts/orderbook \
+            --price-bucket 100 \
+            --top-n 20
+      - name: Validate captured book and concentration report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("artifacts/orderbook")
+          report = json.loads((root / "xbtusd-kraken-liquidity-report.json").read_text())
+          raw = json.loads((root / "xbtusd-kraken-book.json").read_text())
+          assert report["venue"] == "kraken_spot"
+          assert report["bid_level_count"] > 0 and report["ask_level_count"] > 0
+          assert report["top_concentrated_levels_by_notional"]
+          assert raw["raw_book"]["bids"] and raw["raw_book"]["asks"]
+          print(json.dumps({
+              "venue": report["venue"], "pair": report["pair_returned"],
+              "captured_at": report["captured_at"],
+              "bid_levels": report["bid_level_count"], "ask_levels": report["ask_level_count"],
+              "best_bid": report["best_bid"], "best_ask": report["best_ask"],
+              "ranked_concentrated_levels": len(report["top_concentrated_levels_by_notional"]),
+          }, indent=2))
+          PY
+      - name: Upload raw book and concentration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kraken-xbtusd-live-snapshot-${{ github.run_id }}
+          path: artifacts/orderbook/
+          if-no-files-found: warn
+          retention-days: 14
