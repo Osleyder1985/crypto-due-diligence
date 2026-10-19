@@ -1,6 +1,9 @@
 name: Kraken WebSocket 1000-level BTC liquidity chart
 
 on:
+  push:
+    branches:
+      - feat/kraken-websocket-depth-1000
   workflow_dispatch:
     inputs:
       snapshots:
@@ -40,7 +43,7 @@ jobs:
           python -m unittest discover -s tests -p "test_liquidity_support_resistance_chart.py" -v
       - name: Collect Kraken WebSocket v2 book at 1000 levels per side
         env:
-          SNAPSHOTS: ${{ inputs.snapshots }}
+          SNAPSHOTS: ${{ inputs.snapshots || '120' }}
         run: |
           python -m orderbook.kraken_websocket_collector --pair BTC/USD --snapshots "$SNAPSHOTS" --interval-seconds 5 --output-dir artifacts/orderbook-ws
       - name: Calculate persistent candidate zones
@@ -48,7 +51,7 @@ jobs:
           python -m orderbook.nearby_support_resistance --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --output-dir artifacts/orderbook-ws --max-distance-pct 30 --min-persistence-pct 60 --large-concentration-threshold-usd 1000000
       - name: Generate broad-range support and resistance chart
         env:
-          RANGE_PCT: ${{ inputs.range_pct }}
+          RANGE_PCT: ${{ inputs.range_pct || '20' }}
         run: |
           python -m orderbook.liquidity_support_resistance_chart --input artifacts/orderbook-ws/kraken-xbtusd-ws-snapshots.jsonl --zones artifacts/orderbook-ws/kraken-nearby-support-resistance.json --output artifacts/orderbook-ws/btc-liquidity-support-resistance-ws.png --range-pct "$RANGE_PCT"
       - name: Upload WebSocket snapshots, reports and chart
