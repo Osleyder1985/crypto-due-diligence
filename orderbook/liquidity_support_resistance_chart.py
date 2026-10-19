@@ -49,6 +49,19 @@ def main():
             slot["ask"].append(float(b.get("ask_notional_usd", 0)))
 
     prices = sorted(accum)
+    # Measure coverage as the union of observed $100 buckets, not the span
+    # between the lowest and highest bucket (which may hide internal gaps).
+    observed_intervals = sorted(
+        (max(low, x), min(high, x + 100)) for x in prices if min(high, x + 100) > max(low, x)
+    )
+    merged_intervals = []
+    for start, end in observed_intervals:
+        if merged_intervals and start <= merged_intervals[-1][1]:
+            merged_intervals[-1] = (merged_intervals[-1][0], max(merged_intervals[-1][1], end))
+        else:
+            merged_intervals.append((start, end))
+    observed_price_span = sum(end - start for start, end in merged_intervals)
+    observed_fraction_pct = observed_price_span / (high - low) * 100
     bids = [sum(accum[x]["bid"]) / len(accum[x]["bid"]) for x in prices]
     asks = [sum(accum[x]["ask"]) / len(accum[x]["ask"]) for x in prices]
     zones_report = json.loads(Path(a.zones).read_text(encoding="utf-8"))
@@ -65,11 +78,18 @@ def main():
         ax.barh([x + 50 for x in prices], bids, height=72, label="Buy bids", color="#238b57", alpha=.8)
         ax.barh([x + 50 for x in prices], [-v for v in asks], height=72, label="Sell asks", color="#c94c4c", alpha=.8)
         coverage_low, coverage_high = min(prices), max(prices) + 100
-        ax.axhspan(coverage_low, coverage_high, color="#777777", alpha=.045, label="Observed bucket coverage")
-        if coverage_low > low:
-            ax.axhspan(low, min(coverage_low, high), facecolor="none", edgecolor="#888888", hatch="////", linewidth=0)
-        if coverage_high < high:
-            ax.axhspan(max(coverage_high, low), high, facecolor="none", edgecolor="#888888", hatch="////", linewidth=0)
+        for index, (start, end) in enumerate(merged_intervals):
+            ax.axhspan(start, end, color="#777777", alpha=.045,
+                       label="Observed bucket coverage" if index == 0 else None)
+        cursor = low
+        for start, end in merged_intervals:
+            if start > cursor:
+                ax.axhspan(cursor, start, facecolor="none", edgecolor="#888888",
+                           hatch="////", linewidth=0)
+            cursor = max(cursor, end)
+        if cursor < high:
+            ax.axhspan(cursor, high, facecolor="none", edgecolor="#888888",
+                       hatch="////", linewidth=0)
         ax.axhline(coverage_low, color="#666666", linestyle=":", linewidth=1)
         ax.axhline(coverage_high, color="#666666", linestyle=":", linewidth=1)
     else:
@@ -106,10 +126,8 @@ def main():
     ax.grid(True, axis="y", alpha=.25)
     ax.legend(loc="lower left")
     coverage = "No buckets observed"
-    observed_fraction_pct = 0.0
     if coverage_low is not None:
         coverage = f"Observed bucket span: ${coverage_low:,.0f}–${coverage_high:,.0f}"
-        observed_fraction_pct = max(0.0, min(100.0, (min(coverage_high, high) - max(coverage_low, low)) / (high - low) * 100))
     fig.text(.01, .005,
              f"Requested window: ${low:,.0f}–${high:,.0f} | {coverage} "
              f"({observed_fraction_pct:.1f}% of requested price span observed) | "
